@@ -1,18 +1,15 @@
-import React from 'react';
-import renderer from 'react-test-renderer';
-
-const redirectMock = jest.fn(() => null);
+import type React from 'react';
 
 jest.mock('expo-router', () => ({
-  Redirect: (props: { href: string }) => redirectMock(props),
+  Redirect: 'Redirect',
 }));
 
 describe('root route', () => {
   it('redirects / to the handshake tab route', () => {
-    const RootIndex = require('@/app/index').default;
+    const RootIndex = require('@/app/index').default as () => React.ReactElement<{ href: string }>;
 
-    renderer.create(<RootIndex />);
+    const element = RootIndex();
 
-    expect(redirectMock).toHaveBeenCalledWith({ href: '/handshake' });
+    expect(element.props).toMatchObject({ href: '/handshake' });
   });
 });
