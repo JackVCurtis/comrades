@@ -3,6 +3,7 @@ import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { TRUST_FLOWS } from '@/app/navigation/flows';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -16,20 +17,16 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
       }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
+      {TRUST_FLOWS.map((flow) => (
+        <Tabs.Screen
+          key={flow.routeName}
+          name={flow.routeName}
+          options={{
+            title: flow.title,
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name={flow.icon} color={color} />,
+          }}
+        />
+      ))}
     </Tabs>
   );
 }

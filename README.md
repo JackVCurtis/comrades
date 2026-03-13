@@ -19,7 +19,7 @@ A mobile app for decentralized sharing of trust relationships via Merkle Tree
 
     - [x] Initialize an Expo TypeScript app with a shared design system, linting, and test setup.
 
-    - [ ] Build navigation with tabs and stacks for Handshake flow, Sign Message flow, and View Message Distance flow
+    - [x] Build navigation with tabs and stacks for Handshake flow, Sign Message flow, and View Message Distance flow
 
     - [ ] Implement reusable UI primitives (buttons, cards, headers, status badges) and consistent dark/light theming.
 
