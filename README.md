@@ -64,4 +64,5 @@ A mobile app for decentralized sharing of trust relationships via Merkle Tree
    - [ ]  Implement NFC send/receive flows that serialize, validate, and persist exchanged trust data safely.
 
    - [ ]  Add conflict resolution rules for merging imported tree data with local handshakes.
-   [ ]  Add end-to-end tests for successful exchange, corrupted payload rejection, and recovery UX.
+   
+   - [ ]  Add end-to-end tests for successful exchange, corrupted payload rejection, and recovery UX.
