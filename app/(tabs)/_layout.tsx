@@ -1,15 +1,17 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { TRUST_FLOWS } from '@/app/navigation/flows';
-import { getBottomTabBarStyle } from '@/app/navigation/tab-bar-style';
+import { getBottomTabBarItemStyle, getBottomTabBarStyle } from '@/app/navigation/tab-bar-style';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { bottom } = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -17,7 +19,8 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarStyle: getBottomTabBarStyle(),
+        tabBarStyle: getBottomTabBarStyle(undefined, bottom),
+        tabBarItemStyle: getBottomTabBarItemStyle(),
       }}>
       {TRUST_FLOWS.map((flow) => (
         <Tabs.Screen
