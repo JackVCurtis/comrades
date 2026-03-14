@@ -4,7 +4,7 @@ import React from 'react';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { TRUST_FLOWS } from '@/app/navigation/flows';
-import { getBottomTabBarStyle } from '@/app/navigation/tab-bar-style';
+import { getBottomTabBarItemStyle, getBottomTabBarStyle } from '@/app/navigation/tab-bar-style';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -18,6 +18,7 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: getBottomTabBarStyle(),
+        tabBarItemStyle: getBottomTabBarItemStyle(),
       }}>
       {TRUST_FLOWS.map((flow) => (
         <Tabs.Screen
