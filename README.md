@@ -21,7 +21,7 @@ A mobile app for decentralized sharing of trust relationships via Merkle Tree
 
     - [x] Build navigation with tabs and stacks for Handshake flow, Sign Message flow, and View Message Distance flow
 
-    - [ ] Implement reusable UI primitives (buttons, cards, headers, status badges) and consistent dark/light theming.
+    - [x] Implement reusable UI primitives (buttons, cards, headers, status badges) and consistent dark/light theming.
 
     - [ ] Create screen-level views backed by mock data for trust relationships, signed messages, and profile identity details.
 
