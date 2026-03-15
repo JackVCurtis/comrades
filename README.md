@@ -136,22 +136,6 @@ Recommended reading order:
 
 ---
 
-# Development Status
-
-Current implementation focus:
-
-* canonical record formats
-* deterministic Merkle log
-* trust resolution engine
-* Android NFC bootstrap
-* BLE synchronization
-
-Android is the initial target platform.
-
-iOS support is planned with a more limited NFC role.
-
----
-
 # Design Principles
 
 PGT follows several architectural rules:
@@ -165,6 +149,18 @@ PGT follows several architectural rules:
 
 ---
 
+# Development Status
+
+Current implementation focus:
+
+* Refine UI so theoretical user experience can be demoed for viability
+* Machine-readable specification for protocol data structures and transactions
+
+Android is the initial target platform.
+
+iOS support is planned with a more limited NFC role.
+
+---
 ## Task Breakdown
 ### Android (Phase I)
 1) UI Application (Expo + React Native)
