@@ -3,7 +3,9 @@ name: Publish preview build
 on:
   push:
     branches: ['main']
-
+  paths:
+    - !**/*.md
+    
 jobs:
   publish_preview_update:
     name: Publish preview build
