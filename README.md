@@ -177,7 +177,7 @@ iOS support is planned with a more limited NFC role.
   - `key_rotation`
   - `revocation`
 - [x] Specify deterministic serialization rules for `canonical_bytes` (field order, encoding, optional fields, timestamp/nonce formats). See `docs/canonical-serialization.md`.
-- [ ] Add domain-separated hashing helpers:
+- [x] Add domain-separated hashing helpers:
   - `record_hash = SHA256("record_hash_v1" || canonical_record_bytes)`
   - `leaf_hash = SHA256("merkle_leaf_v1" || record_hash)`
 - [ ] Add schema/version migration strategy to reject unknown or malformed record versions safely.
