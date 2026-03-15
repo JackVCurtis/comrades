@@ -162,55 +162,85 @@ iOS support is planned with a more limited NFC role.
 
 ---
 ## Task Breakdown
-### Android (Phase I)
-1) UI Application (Expo + React Native)
+### Current UI Status (already completed)
+- [x] Initialize Expo TypeScript app with shared design system, linting, and test setup.
+- [x] Build tab/stack navigation for Handshake, Sign Message, and View Message Distance.
+- [x] Implement reusable UI primitives and dark/light theming.
+- [x] Build screen-level mock-data views for trust relationships, signed messages, and profile identity.
 
-    - [x] Initialize an Expo TypeScript app with a shared design system, linting, and test setup.
+### Remaining Engineering Checklist (architecture-aligned)
 
-    - [x] Build navigation with tabs and stacks for Handshake flow, Sign Message flow, and View Message Distance flow
+#### 1) Canonical record formats (highest priority)
+- [ ] Define versioned canonical schemas for all durable record types:
+  - `identity_binding`
+  - `endorsement`
+  - `handshake`
+  - `key_rotation`
+  - `revocation`
+- [ ] Specify deterministic serialization rules for `canonical_bytes` (field order, encoding, optional fields, timestamp/nonce formats).
+- [ ] Add domain-separated hashing helpers:
+  - `record_hash = SHA256("record_hash_v1" || canonical_record_bytes)`
+  - `leaf_hash = SHA256("merkle_leaf_v1" || record_hash)`
+- [ ] Add schema/version migration strategy to reject unknown or malformed record versions safely.
 
-    - [x] Implement reusable UI primitives (buttons, cards, headers, status badges) and consistent dark/light theming.
+#### 2) Validation engine
+- [ ] Implement structural validation per record type (required fields, format constraints, size limits).
+- [ ] Implement cryptographic validation (self-signatures, participant signatures, endorsement signatures, rotation/revocation signer checks).
+- [ ] Implement semantic validation rules:
+  - duplicate record detection
+  - conflicting payload detection for same logical ID
+  - key-epoch/rotation-counter monotonicity checks
+- [ ] Add an auditable validation result model (`accepted`, `rejected`, `conflicted`, reason codes).
 
-    - [x] Create screen-level views backed by mock data for trust relationships, signed messages, and profile identity details.
+#### 3) Trust resolution engine
+- [ ] Implement local trust state derivation (`CLAIMED`, `TENTATIVE`, `VERIFIED`, `CONFLICTED`, `REVOKED`).
+- [ ] Implement endorsement weighting and threshold policy configuration.
+- [ ] Apply key rotation and revocation effects without deleting prior history.
+- [ ] Surface conflict sets explicitly (same UUID → different key, same logical record ID → different payload).
+- [ ] Expose deterministic, explainable trust decisions for UI/debug tooling.
 
-    - [ ] Add form validation, loading/error states, and empty states so all core screens are demo-ready.
+#### 4) Deterministic Merkle log
+- [ ] Implement append-only record storage and immutable history model.
+- [ ] Build deterministic leaf ordering (`sort by leaf_hash`) and reproducible Merkle root generation.
+- [ ] Implement Merkle proof generation and verification APIs.
+- [ ] Implement reconciliation helpers for subtree diffing and missing-leaf discovery.
+- [ ] Add conformance tests for determinism, tamper detection, replay handling, and cross-device hash parity.
 
-2) Android Plugin (libsignal bridge)
+#### 5) BLE synchronization protocol
+- [ ] Implement session negotiation with authenticated encryption using NFC-bootstrapped ephemeral material.
+- [ ] Implement sync phases:
+  1. root comparison
+  2. subtree reconciliation
+  3. record transfer
+  4. validation
+  5. commit
+- [ ] Ensure invalid records never commit and always produce structured rejection events.
+- [ ] Implement resumable sync checkpoints for interrupted sessions.
+- [ ] Add protocol tests for divergence recovery, partial transfer resume, and replay resilience.
 
-   - [ ] Create an Android native module that exposes key generation, signing, and verification from libsignal to JavaScript.
+#### 6) NFC bootstrap
+- [ ] Define and version `NfcBootstrap` payload (`session_uuid`, `identity_binding_hash`, `ephemeral_public_key`, `bluetooth_service_uuid`, `nonce`, `signature`).
+- [ ] Enforce strict payload size limits and parser hardening for malformed/tampered input.
+- [ ] Bind bootstrap data to subsequent BLE session negotiation.
+- [ ] Add UX/state handling for tap success, timeout, mismatch, and retry/recovery.
 
-   - [ ] Define a stable TypeScript interface and validate all JNI/bridge inputs and outputs.
+#### 7) Mobile platform bridge work
 
-   - [ ] Add instrumentation/unit tests for native crypto calls and bridge error handling.
+##### Android (Phase I)
+- [ ] Ship Android native crypto bridge that wraps **libsignal** cryptographic primitives for key generation, signing, and verification.
+- [ ] Define exactly which libsignal APIs are used and enforce secure defaults (algorithm selection, key sizes, nonce randomness, and signature encoding).
+- [ ] Finalize stable TypeScript contract and strict JNI/bridge input-output validation.
+- [ ] Add unit/instrumentation tests for success/failure paths, serialization edge cases, and parity with expected libsignal behavior.
+- [ ] Document build, local dev, CI, and release integration steps, including libsignal dependency/version pinning.
 
-   - [ ] Package and document plugin integration steps for local development and release builds.
+##### iOS (Phase II)
+- [ ] Ship iOS native crypto bridge with parity to Android API and payload shapes.
+- [ ] Add XCTest coverage for crypto behavior, bridging failures, and serialization fidelity.
+- [ ] Document CocoaPods/Xcode + Expo prebuild setup.
+- [ ] Add E2E tests for valid exchange, corrupted payload rejection, and user recovery flow.
 
-3) Merkle Tree Creation and Verification
-
-   - [ ]  Design canonical handshake leaf encoding including UUID, public key, and metadata needed for ordering.
-
-   - [ ] Implement deterministic Merkle tree construction and root generation from local handshake records.
-
-   - [ ]  Implement proof generation/verification APIs for checking whether a signed message identity appears in a tree.
-
-   - [ ]  Add tests for determinism, tamper detection, duplicate handling, and cross-platform compatibility of hashes.
-
-4) NFC File Exchange
-
-   - [ ]  Define a compact exchange format for tree snapshots, proofs, and signature metadata with versioning.
-
-   - [ ]  Implement NFC send/receive flows that serialize, validate, and persist exchanged trust data safely.
-
-   - [ ]  Add conflict resolution rules for merging imported tree data with local handshakes.
-
-### iOS (Phase II)
-5) iOS Plugin (libsignal bridge)
-
-   - [ ] Create an iOS native module that exposes key generation, signing, and verification from libsignal to JavaScript.
-
-   - [ ]  Define matching TypeScript contracts so iOS and Android return consistent payloads.
-
-   - [ ]  Add XCTest coverage for native crypto operations, failures, and bridge serialization.
-
-   - [ ]  Document plugin setup for CocoaPods/Xcode and Expo prebuild workflows.
-   - [ ]  Add end-to-end tests for successful exchange, corrupted payload rejection, and recovery UX.
+#### 8) UI completion for realistic demos
+- [ ] Add validation, loading, empty, and error states across all core screens.
+- [ ] Add conflict visualization for disputed bindings/records.
+- [ ] Add trust-state explainability views (why an identity is VERIFIED/CONFLICTED/etc.).
+- [ ] Add sync session progress and failure diagnostics in-app.
