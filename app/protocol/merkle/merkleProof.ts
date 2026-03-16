@@ -1,4 +1,5 @@
-import { createHash } from 'crypto';
+
+import { hexToBytes, sha256Hex } from '@/app/protocol/crypto/hash';
 
 import type { MerkleTree } from './merkleTree';
 
@@ -11,7 +12,7 @@ export interface MerkleProof {
 }
 
 function hashNodePair(left: string, right: string): string {
-  return createHash('sha256').update(Buffer.from(left, 'hex')).update(Buffer.from(right, 'hex')).digest('hex');
+  return sha256Hex([hexToBytes(left), hexToBytes(right)]);
 }
 
 export function generateProof(tree: MerkleTree, leafHash: string): MerkleProof {
