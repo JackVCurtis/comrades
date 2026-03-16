@@ -1,5 +1,9 @@
 import { decodeDurableRecord } from '../decode-record';
 import type { DurableRecord } from '../records';
+import {
+  type ValidationResult,
+} from './ValidationResult';
+import { safeValidationWrapper } from './safeValidationWrapper';
 import { validateRecordStructure } from './validateRecordStructure';
 import {
   type CryptographicValidationContext,
@@ -10,30 +14,29 @@ import {
   validateRecordSemantics,
 } from './validateRecordSemantics';
 
-export type RecordValidationResult =
-  | { accepted: true }
-  | {
-      accepted: false;
-      phase: 'structural' | 'cryptographic' | 'semantic';
-      reason: string;
-      field?: string;
-      result?: 'rejected' | 'conflicted';
-    };
-
 function validateCryptography(
   record: DurableRecord,
   context: CryptographicValidationContext
-): RecordValidationResult {
+): ValidationResult {
   const cryptoResult = validateRecordCryptography(record, context);
   if (cryptoResult.valid) {
-    return { accepted: true };
+    return {
+      status: 'accepted',
+      reason: 'cryptographic_validation_passed',
+      details: {
+        source: 'record_validation',
+      },
+    };
   }
 
   return {
-    accepted: false,
+    status: 'rejected',
     phase: 'cryptographic',
     reason: cryptoResult.reason,
     field: cryptoResult.field,
+    details: {
+      source: 'record_validation',
+    },
   };
 }
 
@@ -44,41 +47,57 @@ export type RecordValidationContext = CryptographicValidationContext & {
 export function validateRecord(
   record: unknown,
   context: RecordValidationContext = {}
-): RecordValidationResult {
-  const structureResult = validateRecordStructure(record);
-  if (!structureResult.valid) {
+): ValidationResult {
+  return safeValidationWrapper(() => {
+    const structureResult = validateRecordStructure(record);
+    if (!structureResult.valid) {
+      return {
+        status: 'rejected',
+        phase: 'structural',
+        reason: structureResult.reason,
+        field: structureResult.field,
+        details: {
+          source: 'record_validation',
+        },
+      };
+    }
+
+    const decoded = decodeDurableRecord(record);
+    if (!decoded.ok) {
+      return {
+        status: 'rejected',
+        phase: 'structural',
+        reason: decoded.code,
+        details: {
+          source: 'record_validation',
+        },
+      };
+    }
+
+    const cryptographicResult = validateCryptography(decoded.record, context);
+    if (cryptographicResult.status !== 'accepted') {
+      return cryptographicResult;
+    }
+
+    const semanticResult = validateRecordSemantics(decoded.record, context.semantic);
+    if (semanticResult.result !== 'accepted') {
+      return {
+        status: semanticResult.result,
+        phase: 'semantic',
+        reason: semanticResult.reason,
+        details: {
+          source: 'record_validation',
+        },
+      };
+    }
+
     return {
-      accepted: false,
-      phase: 'structural',
-      reason: structureResult.reason,
-      field: structureResult.field,
+      status: 'accepted',
+      reason: 'validation_passed',
+      details: {
+        source: 'record_validation',
+      },
     };
-  }
-
-  const decoded = decodeDurableRecord(record);
-  if (!decoded.ok) {
-    return {
-      accepted: false,
-      phase: 'structural',
-      reason: decoded.code,
-    };
-  }
-
-
-  const cryptographicResult = validateCryptography(decoded.record, context);
-  if (!cryptographicResult.accepted) {
-    return cryptographicResult;
-  }
-
-  const semanticResult = validateRecordSemantics(decoded.record, context.semantic);
-  if (semanticResult.result !== 'accepted') {
-    return {
-      accepted: false,
-      phase: 'semantic',
-      reason: semanticResult.reason,
-      result: semanticResult.result,
-    };
-  }
-
-  return cryptographicResult;
+  });
 }
+

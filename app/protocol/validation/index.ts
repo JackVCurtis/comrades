@@ -1,3 +1,5 @@
+export * from './ValidationResult';
+export * from './safeValidationWrapper';
 export * from './formatValidators';
 export * from './validateRecordStructure';
 export * from './validateRecord';
