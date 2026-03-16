@@ -31,7 +31,7 @@ export function buildTrustIndexes(records: DurableRecord[]): TrustIndexes {
   const conflictingEndorsementsByBinding = new Map<string, EndorsementRecord[]>();
 
   const bindingsBySubject = new Map<string, string[]>();
-  const endorsementTypesBySubject = new Map<string, Set<string>>();
+  const endorsementTypesBySubjectAndEndorser = new Map<string, Map<string, Set<string>>>();
 
   for (const record of records) {
     const recordHash = deriveRecordHash(record);
@@ -52,9 +52,11 @@ export function buildTrustIndexes(records: DurableRecord[]): TrustIndexes {
       known.push(record);
       endorsementsByBinding.set(record.subject_binding_hash, known);
 
-      const knownTypes = endorsementTypesBySubject.get(record.subject_binding_hash) ?? new Set<string>();
+      const byEndorser = endorsementTypesBySubjectAndEndorser.get(record.subject_binding_hash) ?? new Map<string, Set<string>>();
+      const knownTypes = byEndorser.get(record.endorser_binding_hash) ?? new Set<string>();
       knownTypes.add(record.endorsement_type);
-      endorsementTypesBySubject.set(record.subject_binding_hash, knownTypes);
+      byEndorser.set(record.endorser_binding_hash, knownTypes);
+      endorsementTypesBySubjectAndEndorser.set(record.subject_binding_hash, byEndorser);
       continue;
     }
 
@@ -77,8 +79,9 @@ export function buildTrustIndexes(records: DurableRecord[]): TrustIndexes {
     }
   }
 
-  for (const [bindingHash, types] of endorsementTypesBySubject.entries()) {
-    if (!types.has('binding_valid') || !types.has('binding_invalid')) {
+  for (const [bindingHash, byEndorser] of endorsementTypesBySubjectAndEndorser.entries()) {
+    const hasContradiction = [...byEndorser.values()].some((types) => types.has('binding_valid') && types.has('binding_invalid'));
+    if (!hasContradiction) {
       continue;
     }
 
