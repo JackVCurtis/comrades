@@ -327,6 +327,15 @@ Add conformance tests for:
 
 ## 5) Proximity bootstrap and BLE synchronization
 
+
+### Native runtime requirements (NFC/BLE)
+
+- `react-native-nfc-manager` and `react-native-ble-plx` are native modules configured through Expo config plugins in `app.json`.
+- Use an Expo development build (Dev Client) or EAS/local native build after `expo prebuild`; **Expo Go is not sufficient** for full NFC/BLE testing.
+- After changing plugin or permission configuration, regenerate native projects (`npx expo prebuild`) and rebuild the app binary.
+- BLE scan + advertise flow requires Bluetooth + location permissions on Android (including Android 12+ runtime Bluetooth permissions).
+
+---
 This stage implements the proximity session bootstrap and Merkle log synchronization using the following libraries:
 
 - **NFC:** `react-native-nfc-manager`

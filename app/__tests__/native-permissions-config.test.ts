@@ -39,12 +39,56 @@ describe('native permission configuration', () => {
 
     expect(permissions).toEqual(
       expect.arrayContaining([
+        'android.permission.BLUETOOTH',
+        'android.permission.BLUETOOTH_ADMIN',
         'android.permission.BLUETOOTH_SCAN',
         'android.permission.BLUETOOTH_CONNECT',
         'android.permission.BLUETOOTH_ADVERTISE',
+        'android.permission.ACCESS_COARSE_LOCATION',
         'android.permission.ACCESS_FINE_LOCATION',
         'android.permission.NFC',
       ])
+    );
+  });
+
+  it('configures BLE and NFC Expo config plugins', () => {
+    const config = loadExpoConfig();
+    const plugins = config.expo?.plugins ?? [];
+
+    const blePlugin = plugins.find(
+      (entry) => Array.isArray(entry) && entry[0] === 'react-native-ble-plx'
+    ) as
+      | [
+          string,
+          {
+            isBackgroundEnabled?: boolean;
+            modes?: string[];
+            bluetoothAlwaysPermission?: string;
+          },
+        ]
+      | undefined;
+
+    const nfcPlugin = plugins.find(
+      (entry) => Array.isArray(entry) && entry[0] === 'react-native-nfc-manager'
+    ) as
+      | [string, { nfcPermission?: string; includeNdefEntitlement?: boolean }]
+      | undefined;
+
+    expect(blePlugin).toBeDefined();
+    expect(blePlugin?.[1]).toEqual(
+      expect.objectContaining({
+        isBackgroundEnabled: true,
+        modes: expect.arrayContaining(['central', 'peripheral']),
+        bluetoothAlwaysPermission: expect.any(String),
+      })
+    );
+
+    expect(nfcPlugin).toBeDefined();
+    expect(nfcPlugin?.[1]).toEqual(
+      expect.objectContaining({
+        nfcPermission: expect.any(String),
+        includeNdefEntitlement: true,
+      })
     );
   });
 

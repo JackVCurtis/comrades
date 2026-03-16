@@ -31,7 +31,10 @@
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.BLUETOOTH_ADVERTISE",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.NFC"
+        "android.permission.NFC",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {
@@ -56,6 +59,24 @@
         "expo-secure-store",
         {
           "faceIDPermission": "EasyPGT uses secure storage to protect identity keys behind device authentication."
+        }
+      ],
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "EasyPGT uses NFC to bootstrap authenticated proximity sessions.",
+          "includeNdefEntitlement": true
+        }
+      ],
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": true,
+          "modes": [
+            "central",
+            "peripheral"
+          ],
+          "bluetoothAlwaysPermission": "EasyPGT uses Bluetooth to discover and connect to nearby peers for proximity handshakes."
         }
       ]
     ],

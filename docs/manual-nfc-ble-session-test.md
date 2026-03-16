@@ -17,7 +17,9 @@ Not implemented here: Merkle root compare, subtree reconciliation, record transf
 
 - Android hardware recommended for NFC testing.
 - App built with React Native + Expo project configuration.
-- For native NFC/BLE testing, ensure `react-native-nfc-manager` and `react-native-ble-plx` are available in the target native runtime.
+- `react-native-nfc-manager` and `react-native-ble-plx` must be included in the native runtime through Expo config plugins and a native build.
+- Use a Dev Client or standalone native build; **Expo Go is not sufficient** for full NFC/BLE transport testing.
+- If plugin config/permissions changed, run `npx expo prebuild` and rebuild before re-running this manual test.
 
 ## Developer test flow
 
@@ -41,6 +43,7 @@ Not implemented here: Merkle root compare, subtree reconciliation, record transf
 
 ## Platform/library caveats
 
+- Android 12+ requires runtime grants for `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`, and `BLUETOOTH_ADVERTISE`; location permission may still be required on older Android versions.
 - Expo Go may not expose all native NFC/BLE capabilities.
 - iOS NFC role is more limited than Android for generic peer bootstrap exchange.
 - This slice provides deterministic protocol checks and developer diagnostics first; full transport productionization is a later step.
