@@ -1,15 +1,17 @@
-# NFC Bootstrap Payload (v1)
+# QR Bootstrap Payload (v1)
 
-This document defines the minimal NFC bootstrap payload used for proximity-bootstrapped BLE session testing.
+This document defines the minimal QR bootstrap payload used for proximity-bootstrapped BLE session testing.
 
 ## Purpose
 
-`NfcBootstrapV1` is a signed transport payload exchanged over NFC to bind a later BLE session to physical proximity.
+`QrBootstrapV1` is a signed transport payload exchanged via QR scan to bind a later BLE session to an in-person interaction.
+
+QR is the bootstrap transport in this implementation slice. BLE remains the session and synchronization transport.
 
 ## Payload fields
 
 ```ts
-interface NfcBootstrapV1 {
+interface QrBootstrapV1 {
   version: 1;
   session_uuid: string;
   identity_binding_hash: string;
@@ -25,14 +27,16 @@ interface NfcBootstrapV1 {
 The signature covers canonical bytes for all fields except `signature`:
 
 ```ts
-type SignableNfcBootstrapV1 = Omit<NfcBootstrapV1, 'signature'>;
+type SignableQrBootstrapV1 = Omit<QrBootstrapV1, 'signature'>;
 ```
 
 ## Canonical serialization
 
 Canonical serialization uses the repository canonical serializer (`canonicalSerialize`) with deterministic lexicographic field ordering and length-prefixed field/value encoding. `JSON.stringify()` is not used for signature input.
 
-## Validation rules
+Within this payload type, field names and values are encoded exactly as specified by `docs/canonical-serialization.md`; no transport-specific shortcuts are permitted.
+
+## Strict validation (fail-closed)
 
 Validation is fail-closed and enforces:
 
@@ -47,16 +51,15 @@ Validation is fail-closed and enforces:
 - signature format and detached-signature verification
 - payload size limit (`VALIDATION_LIMITS.max_record_size`)
 
-## Fail-closed behavior
+Any parse, decoding, canonicalization, or validation error rejects the payload. Parser exceptions return `validation_failure` and never produce partial acceptance.
 
-Any parse/validation error rejects the payload. Parser exceptions return `validation_failure` and never produce partial acceptance.
-
-## BLE session binding
+## BLE session-binding rules
 
 On successful bootstrap validation, BLE discovery and session confirmation are bound to:
 
 - expected `bluetooth_service_uuid`
 - expected `session_uuid`
 - expected peer `identity_binding_hash`
+- expected peer `ephemeral_public_key` for session key derivation/authentication
 
-If any binding check fails, the session is rejected.
+If any binding check fails, the BLE session is rejected and no synchronization traffic is accepted.

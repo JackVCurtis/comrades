@@ -23,7 +23,7 @@ describe("Handshake flow", () => {
       getByPlaceholderText("Enter the name you want to share"),
       "Taylor Morgan",
     );
-    fireEvent.press(getByText("Continue to NFC exchange"));
+    fireEvent.press(getByText("Continue to QR exchange"));
 
     expect(getByText("Hold phones next to each other")).toBeTruthy();
 

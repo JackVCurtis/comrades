@@ -20,7 +20,7 @@ function loadExpoConfig(): ExpoConfig {
 }
 
 describe('native permission configuration', () => {
-  it('declares iOS privacy usage descriptions for Bluetooth and NFC access', () => {
+  it('declares iOS privacy usage descriptions for Bluetooth and camera access', () => {
     const config = loadExpoConfig();
     const infoPlist = config.expo?.ios?.infoPlist;
 
@@ -28,12 +28,12 @@ describe('native permission configuration', () => {
       expect.objectContaining({
         NSBluetoothAlwaysUsageDescription: expect.any(String),
         NSBluetoothPeripheralUsageDescription: expect.any(String),
-        NFCReaderUsageDescription: expect.any(String),
+        NSCameraUsageDescription: expect.any(String),
       })
     );
   });
 
-  it('declares Android runtime permissions needed by BLE and NFC handshakes', () => {
+  it('declares Android runtime permissions needed by BLE and QR handshakes', () => {
     const config = loadExpoConfig();
     const permissions = config.expo?.android?.permissions ?? [];
 
@@ -46,12 +46,12 @@ describe('native permission configuration', () => {
         'android.permission.BLUETOOTH_ADVERTISE',
         'android.permission.ACCESS_COARSE_LOCATION',
         'android.permission.ACCESS_FINE_LOCATION',
-        'android.permission.NFC',
+        'android.permission.CAMERA',
       ])
     );
   });
 
-  it('configures BLE and NFC Expo config plugins', () => {
+  it('configures BLE and camera Expo config plugins', () => {
     const config = loadExpoConfig();
     const plugins = config.expo?.plugins ?? [];
 
@@ -68,10 +68,10 @@ describe('native permission configuration', () => {
         ]
       | undefined;
 
-    const nfcPlugin = plugins.find(
-      (entry) => Array.isArray(entry) && entry[0] === 'react-native-nfc-manager'
+    const cameraPlugin = plugins.find(
+      (entry) => Array.isArray(entry) && entry[0] === 'expo-camera'
     ) as
-      | [string, { nfcPermission?: string; includeNdefEntitlement?: boolean }]
+      | [string, { cameraPermission?: string }]
       | undefined;
 
     expect(blePlugin).toBeDefined();
@@ -83,11 +83,10 @@ describe('native permission configuration', () => {
       })
     );
 
-    expect(nfcPlugin).toBeDefined();
-    expect(nfcPlugin?.[1]).toEqual(
+    expect(cameraPlugin).toBeDefined();
+    expect(cameraPlugin?.[1]).toEqual(
       expect.objectContaining({
-        nfcPermission: expect.any(String),
-        includeNdefEntitlement: true,
+        cameraPermission: expect.any(String),
       })
     );
   });
