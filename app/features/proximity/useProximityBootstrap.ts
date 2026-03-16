@@ -1,5 +1,4 @@
-import { useMemo, useReducer, useState } from 'react';
-import nacl from 'tweetnacl';
+import { useReducer, useState } from 'react';
 
 import {
   createPendingBootstrapSession,
@@ -12,9 +11,12 @@ import {
   type NfcBootstrapV1,
   type SignableNfcBootstrapV1,
   encodeBase64,
-  encodeHex,
 } from '@/app/protocol/transport';
 
+import {
+  createProximityLocalKeysProvider,
+  createProximityNonceHex,
+} from './proximityKeys';
 import { proximitySessionReducer } from './proximityState';
 
 type ProximityRole = 'writer' | 'reader';
@@ -23,18 +25,22 @@ function toBase64(bytes: Uint8Array): string {
   return encodeBase64(bytes);
 }
 
-function randomNonceHex(): string {
-  return encodeHex(nacl.randomBytes(16));
-}
-
 export function useProximityBootstrap() {
   const [state, dispatch] = useReducer(proximitySessionReducer, { status: 'idle' as const });
-  const [localSigner] = useState(() => nacl.sign.keyPair());
-  const [localEphemeral] = useState(() => nacl.box.keyPair());
+  const [getLocalKeys] = useState(() => createProximityLocalKeysProvider());
   const [bootstrapPayload, setBootstrapPayload] = useState<NfcBootstrapV1 | null>(null);
   const [diagnostic, setDiagnostic] = useState<string>('');
+  const [localSignerPublicKeyBase64, setLocalSignerPublicKeyBase64] = useState('');
 
-  const localSignerPublicKeyBase64 = useMemo(() => toBase64(localSigner.publicKey), [localSigner.publicKey]);
+  const ensureLocalKeys = () => {
+    const localKeys = getLocalKeys();
+
+    if (!localSignerPublicKeyBase64) {
+      setLocalSignerPublicKeyBase64(toBase64(localKeys.signer.publicKey));
+    }
+
+    return localKeys;
+  };
 
   const prepareWriterPayload = (identityBindingHash: string, bluetoothServiceUuid: string) => {
     dispatch({ type: 'set_status', status: 'nfc_preparing' });
@@ -42,12 +48,12 @@ export function useProximityBootstrap() {
       version: 1,
       session_uuid: crypto.randomUUID(),
       identity_binding_hash: identityBindingHash,
-      ephemeral_public_key: toBase64(localEphemeral.publicKey),
+      ephemeral_public_key: toBase64(ensureLocalKeys().ephemeral.publicKey),
       bluetooth_service_uuid: bluetoothServiceUuid,
-      nonce: randomNonceHex(),
+      nonce: createProximityNonceHex(),
     };
 
-    const signed = signNfcBootstrap(signable, localSigner.secretKey);
+    const signed = signNfcBootstrap(signable, ensureLocalKeys().signer.secretKey);
     setBootstrapPayload(signed);
     setDiagnostic('Bootstrap payload generated and ready for NFC handoff.');
     dispatch({ type: 'set_status', status: 'nfc_ready' });
@@ -77,7 +83,7 @@ export function useProximityBootstrap() {
     dispatch({ type: 'set_status', status: 'ble_connected' });
     dispatch({ type: 'set_status', status: 'session_authenticating' });
 
-    const context = deriveSessionContext(localEphemeral.secretKey, pending);
+    const context = deriveSessionContext(ensureLocalKeys().ephemeral.secretKey, pending);
     if (!context.valid) {
       setDiagnostic(`Session context failure: ${context.reason}`);
       dispatch({ type: 'failed', reason: context.reason });
