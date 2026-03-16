@@ -302,7 +302,7 @@ CONFLICTED
 REVOKED
 ```
 
-* [ ] Implement endorsement weighting
+* [x] Implement endorsement weighting
 * [ ] Apply rotation/revocation effects without deleting history
 * [ ] Surface conflict sets explicitly
 * [ ] Provide deterministic explainable trust decisions

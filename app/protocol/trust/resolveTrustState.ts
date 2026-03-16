@@ -1,7 +1,29 @@
 import type { EndorsementRecord } from '@/app/protocol/records';
 
 import { buildTrustIndexes, deriveRecordHash } from './trustIndexes';
-import type { TrustResolutionInput, TrustResolutionResult, TrustState } from './trustStateTypes';
+import type {
+  EndorsementContribution,
+  EndorsementSummary,
+  TrustResolutionInput,
+  TrustResolutionResult,
+  TrustState,
+} from './trustStateTypes';
+
+const ENDORSEMENT_WEIGHT_TABLE = {
+  binding_valid: {
+    low: 1,
+    medium: 2,
+    high: 3,
+  },
+  binding_invalid: {
+    low: -1,
+    medium: -2,
+    high: -3,
+  },
+} as const;
+
+const TENTATIVE_SCORE_THRESHOLD = 1;
+const VERIFIED_SCORE_THRESHOLD = 3;
 
 function sortEvidence(hashes: string[] | undefined): string[] | undefined {
   if (!hashes || hashes.length === 0) {
@@ -11,12 +33,48 @@ function sortEvidence(hashes: string[] | undefined): string[] | undefined {
   return [...hashes].sort();
 }
 
-function resolveSupportState(endorsements: EndorsementRecord[]): TrustState {
-  if (endorsements.some((endorsement) => endorsement.confidence_level === 'high')) {
+function summarizeEndorsements(endorsements: EndorsementRecord[]): EndorsementSummary {
+  const uniqueByHash = new Map<string, EndorsementRecord>();
+
+  for (const endorsement of endorsements) {
+    const endorsementHash = deriveRecordHash(endorsement);
+    if (!uniqueByHash.has(endorsementHash)) {
+      uniqueByHash.set(endorsementHash, endorsement);
+    }
+  }
+
+  const hashedEndorsements = [...uniqueByHash.entries()].sort(([left], [right]) => left.localeCompare(right));
+
+  const contributions: EndorsementContribution[] = hashedEndorsements.map(([endorsementHash, endorsement]) => ({
+    endorsementHash,
+    endorserBindingHash: endorsement.endorser_binding_hash,
+    endorsementType: endorsement.endorsement_type,
+    confidenceLevel: endorsement.confidence_level,
+    weight: ENDORSEMENT_WEIGHT_TABLE[endorsement.endorsement_type][endorsement.confidence_level],
+  }));
+
+  const positiveScore = contributions
+    .filter((contribution) => contribution.weight > 0)
+    .reduce((total, contribution) => total + contribution.weight, 0);
+  const negativeScore = contributions
+    .filter((contribution) => contribution.weight < 0)
+    .reduce((total, contribution) => total + Math.abs(contribution.weight), 0);
+
+  return {
+    positiveScore,
+    negativeScore,
+    netScore: positiveScore - negativeScore,
+    endorsementHashes: contributions.map((contribution) => contribution.endorsementHash),
+    contributions,
+  };
+}
+
+function resolveSupportState(endorsementSummary: EndorsementSummary): TrustState {
+  if (endorsementSummary.netScore >= VERIFIED_SCORE_THRESHOLD) {
     return 'VERIFIED';
   }
 
-  if (endorsements.some((endorsement) => endorsement.confidence_level === 'medium' || endorsement.confidence_level === 'low')) {
+  if (endorsementSummary.netScore >= TENTATIVE_SCORE_THRESHOLD) {
     return 'TENTATIVE';
   }
 
@@ -31,11 +89,17 @@ export function resolveTrustStates(input: TrustResolutionInput): TrustResolution
     const revocations = indexes.revocationsByBinding.get(bindingHash) ?? [];
     const directConflicts = indexes.conflictsByBinding.get(bindingHash);
     const conflicts = directConflicts ? [...directConflicts] : [];
+    const endorsementSummary = summarizeEndorsements(endorsements);
 
     const evidence = {
-      endorsements: sortEvidence(endorsements.map((endorsement) => deriveRecordHash(endorsement))),
+      endorsements: sortEvidence(endorsementSummary.endorsementHashes),
       revocations: sortEvidence(revocations.map((revocation) => deriveRecordHash(revocation))),
       conflicts: sortEvidence(conflicts),
+      endorsementSummary: {
+        ...endorsementSummary,
+        endorsementHashes: [...endorsementSummary.endorsementHashes],
+        contributions: [...(endorsementSummary.contributions ?? [])],
+      },
     };
 
     const trustState: TrustState =
@@ -43,7 +107,7 @@ export function resolveTrustStates(input: TrustResolutionInput): TrustResolution
         ? 'REVOKED'
         : conflicts.length > 0
           ? 'CONFLICTED'
-          : resolveSupportState(endorsements);
+          : resolveSupportState(endorsementSummary);
 
     return {
       bindingHash,
@@ -52,7 +116,10 @@ export function resolveTrustStates(input: TrustResolutionInput): TrustResolution
         ...(evidence.endorsements ? { endorsements: evidence.endorsements } : {}),
         ...(evidence.revocations ? { revocations: evidence.revocations } : {}),
         ...(evidence.conflicts ? { conflicts: evidence.conflicts } : {}),
+        endorsementSummary: evidence.endorsementSummary,
       },
     };
   });
 }
+
+export { ENDORSEMENT_WEIGHT_TABLE, TENTATIVE_SCORE_THRESHOLD, VERIFIED_SCORE_THRESHOLD };

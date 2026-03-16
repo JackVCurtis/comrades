@@ -14,11 +14,33 @@ The caller is responsible for passing records that already passed the validation
 
 Each identity binding is classified into exactly one state:
 
-- `CLAIMED`: binding exists with no endorsements, conflicts, or revocations.
-- `TENTATIVE`: at least one low/medium confidence `binding_valid` endorsement and no conflicts or revocations.
-- `VERIFIED`: at least one high confidence `binding_valid` endorsement and no conflicts or revocations.
-- `CONFLICTED`: competing local evidence exists (for example multiple bindings for the same UUID, or contradictory endorsement evidence).
+- `CLAIMED`: binding exists with no sufficient weighted endorsement support, and no higher-precedence conflict/revocation state.
+- `TENTATIVE`: weighted endorsement net score meets tentative threshold, and no conflicts or revocations apply.
+- `VERIFIED`: weighted endorsement net score meets verified threshold, and no conflicts or revocations apply.
+- `CONFLICTED`: competing local evidence exists (for example multiple bindings for the same UUID, or contradictory endorsements from the same endorser for the same subject binding).
 - `REVOKED`: revocation targets the binding hash.
+
+## Endorsement weighting model
+
+Endorsement support is scored deterministically using fixed constants:
+
+| endorsement_type  | low | medium | high |
+| ----------------- | --- | ------ | ---- |
+| `binding_valid`   | +1  | +2     | +3   |
+| `binding_invalid` | -1  | -2     | -3   |
+
+The engine computes, per subject binding:
+
+- `positiveScore`: sum of positive endorsement weights
+- `negativeScore`: sum of absolute negative endorsement weights
+- `netScore = positiveScore - negativeScore`
+
+Thresholds are fixed:
+
+- `TENTATIVE` when `netScore >= 1`
+- `VERIFIED` when `netScore >= 3`
+
+Duplicate endorsement records (same canonical record hash) are deduplicated and never double-counted.
 
 ## Evidence indexing
 
@@ -37,7 +59,7 @@ Record hashes are deterministically derived from canonical record bytes (`canoni
 A binding is marked conflicted when any of the following are present:
 
 1. More than one identity binding exists for the same `subject_uuid`.
-2. Endorsements for the same subject binding include both `binding_valid` and `binding_invalid` evidence.
+2. The same endorser binding publishes both `binding_valid` and `binding_invalid` endorsements for the same `subject_binding_hash`.
 
 Conflicts are returned in `evidence.conflicts` for explainability.
 
@@ -63,13 +85,19 @@ For each binding, the result includes:
   - `endorsements[]`
   - `revocations[]`
   - `conflicts[]`
+  - `endorsementSummary`
+    - `positiveScore`
+    - `negativeScore`
+    - `netScore`
+    - `endorsementHashes[]`
+    - `contributions[]` (per-endorsement deterministic contribution breakdown)
 
-Evidence arrays are sorted for stable deterministic output.
+Evidence arrays and contribution lists are sorted for stable deterministic output.
 
 ## Examples
 
 - **CLAIMED**: one `identity_binding`, no supporting records.
 - **TENTATIVE**: one `identity_binding` + low confidence `binding_valid` endorsement.
-- **VERIFIED**: one `identity_binding` + high confidence `binding_valid` endorsement.
+- **VERIFIED**: one `identity_binding` + weighted endorsements summing to net score 3 or greater.
 - **CONFLICTED**: two `identity_binding` records with the same `subject_uuid`.
 - **REVOKED**: binding has endorsements, but a revocation targets the binding hash.

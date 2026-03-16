@@ -41,49 +41,154 @@ function revocation(targetRecordHash: string, overrides: Partial<RevocationRecor
 }
 
 describe('resolveTrustStates', () => {
-  it('derives CLAIMED for a binding without supporting evidence', () => {
+  it('derives CLAIMED for a binding without endorsements', () => {
     const binding = identityBinding();
 
     expect(resolveTrustStates({ validatedRecords: [binding] })).toEqual([
       {
         bindingHash: deriveBindingHash(binding),
         trustState: 'CLAIMED',
-        evidence: {},
+        evidence: {
+          endorsementSummary: {
+            positiveScore: 0,
+            negativeScore: 0,
+            netScore: 0,
+            endorsementHashes: [],
+            contributions: [],
+          },
+        },
       },
     ]);
   });
 
-  it('derives TENTATIVE for a binding with low-confidence support and no conflicts', () => {
+  it('derives TENTATIVE for one low valid endorsement', () => {
     const binding = identityBinding();
     const bindingHash = deriveBindingHash(binding);
-    const lowEndorsement = endorsement(bindingHash, { confidence_level: 'low' });
+    const low = endorsement(bindingHash, { confidence_level: 'low' });
 
-    expect(resolveTrustStates({ validatedRecords: [binding, lowEndorsement] })).toEqual([
+    expect(resolveTrustStates({ validatedRecords: [binding, low] })).toEqual([
       {
         bindingHash,
         trustState: 'TENTATIVE',
         evidence: {
-          endorsements: [deriveRecordHash(lowEndorsement)],
+          endorsements: [deriveRecordHash(low)],
+          endorsementSummary: {
+            positiveScore: 1,
+            negativeScore: 0,
+            netScore: 1,
+            endorsementHashes: [deriveRecordHash(low)],
+            contributions: [
+              {
+                endorsementHash: deriveRecordHash(low),
+                endorserBindingHash: low.endorser_binding_hash,
+                endorsementType: low.endorsement_type,
+                confidenceLevel: low.confidence_level,
+                weight: 1,
+              },
+            ],
+          },
         },
       },
     ]);
   });
 
-  it('derives VERIFIED for a binding with high-confidence support and no conflicts', () => {
+  it('derives VERIFIED for one high valid endorsement', () => {
     const binding = identityBinding();
     const bindingHash = deriveBindingHash(binding);
-    const highEndorsement = endorsement(bindingHash, { confidence_level: 'high' });
+    const high = endorsement(bindingHash, { confidence_level: 'high' });
 
-    expect(resolveTrustStates({ validatedRecords: [binding, highEndorsement] })).toEqual([
-      {
-        bindingHash,
-        trustState: 'VERIFIED',
-        evidence: {
-          endorsements: [deriveRecordHash(highEndorsement)],
-        },
-      },
-    ]);
+    const [result] = resolveTrustStates({ validatedRecords: [binding, high] });
+
+    expect(result.trustState).toBe('VERIFIED');
+    expect(result.evidence.endorsementSummary).toMatchObject({
+      positiveScore: 3,
+      negativeScore: 0,
+      netScore: 3,
+    });
   });
+
+  it('allows multiple low endorsements to combine into VERIFIED', () => {
+    const binding = identityBinding();
+    const bindingHash = deriveBindingHash(binding);
+    const records: DurableRecord[] = [
+      binding,
+      endorsement(bindingHash, { endorser_binding_hash: 'endorser-a', signature: 'sig-a' }),
+      endorsement(bindingHash, { endorser_binding_hash: 'endorser-b', signature: 'sig-b' }),
+      endorsement(bindingHash, { endorser_binding_hash: 'endorser-c', signature: 'sig-c' }),
+    ];
+
+    const [result] = resolveTrustStates({ validatedRecords: records });
+
+    expect(result.trustState).toBe('VERIFIED');
+    expect(result.evidence.endorsementSummary).toMatchObject({
+      positiveScore: 3,
+      negativeScore: 0,
+      netScore: 3,
+    });
+  });
+
+  it('applies mixed positive/negative endorsements to lower weighted trust outcome', () => {
+    const binding = identityBinding();
+    const bindingHash = deriveBindingHash(binding);
+
+    const records: DurableRecord[] = [
+      binding,
+      endorsement(bindingHash, {
+        endorser_binding_hash: 'endorser-a',
+        endorsement_type: 'binding_valid',
+        confidence_level: 'high',
+        signature: 'sig-a',
+      }),
+      endorsement(bindingHash, {
+        endorser_binding_hash: 'endorser-b',
+        endorsement_type: 'binding_valid',
+        confidence_level: 'low',
+        signature: 'sig-b',
+      }),
+      endorsement(bindingHash, {
+        endorser_binding_hash: 'endorser-c',
+        endorsement_type: 'binding_invalid',
+        confidence_level: 'medium',
+        signature: 'sig-c',
+      }),
+    ];
+
+    const [result] = resolveTrustStates({ validatedRecords: records });
+
+    expect(result.trustState).toBe('TENTATIVE');
+    expect(result.evidence.endorsementSummary).toMatchObject({
+      positiveScore: 4,
+      negativeScore: 2,
+      netScore: 2,
+    });
+  });
+
+  it('derives CONFLICTED for contradictory endorsements from the same endorser', () => {
+    const binding = identityBinding();
+    const bindingHash = deriveBindingHash(binding);
+
+    const [result] = resolveTrustStates({
+      validatedRecords: [
+        binding,
+        endorsement(bindingHash, {
+          endorser_binding_hash: 'endorser-a',
+          endorsement_type: 'binding_valid',
+          confidence_level: 'high',
+          signature: 'sig-a',
+        }),
+        endorsement(bindingHash, {
+          endorser_binding_hash: 'endorser-a',
+          endorsement_type: 'binding_invalid',
+          confidence_level: 'low',
+          signature: 'sig-a-2',
+        }),
+      ],
+    });
+
+    expect(result.trustState).toBe('CONFLICTED');
+    expect(result.evidence.conflicts).toEqual(['conflicting_endorsements']);
+  });
+
 
   it('derives CONFLICTED for competing bindings that share a UUID', () => {
     const a = identityBinding({ subject_uuid: 'same-uuid', subject_identity_public_key: 'pub-a' });
@@ -97,6 +202,13 @@ describe('resolveTrustStates', () => {
         trustState: 'CONFLICTED',
         evidence: {
           conflicts: [deriveBindingHash(b)],
+          endorsementSummary: {
+            positiveScore: 0,
+            negativeScore: 0,
+            netScore: 0,
+            endorsementHashes: [],
+            contributions: [],
+          },
         },
       },
       {
@@ -104,37 +216,76 @@ describe('resolveTrustStates', () => {
         trustState: 'CONFLICTED',
         evidence: {
           conflicts: [deriveBindingHash(a)],
+          endorsementSummary: {
+            positiveScore: 0,
+            negativeScore: 0,
+            netScore: 0,
+            endorsementHashes: [],
+            contributions: [],
+          },
         },
       },
     ]);
   });
 
-  it('derives REVOKED when revocation targets binding and overrides endorsements', () => {
+  it('derives REVOKED when revocation targets binding regardless of score', () => {
     const binding = identityBinding();
     const bindingHash = deriveBindingHash(binding);
-    const highEndorsement = endorsement(bindingHash, { confidence_level: 'high' });
+    const high = endorsement(bindingHash, { confidence_level: 'high' });
     const revoke = revocation(bindingHash);
 
-    expect(resolveTrustStates({ validatedRecords: [binding, highEndorsement, revoke] })).toEqual([
-      {
-        bindingHash,
-        trustState: 'REVOKED',
-        evidence: {
-          endorsements: [deriveRecordHash(highEndorsement)],
-          revocations: [deriveRecordHash(revoke)],
-        },
-      },
-    ]);
+    const [result] = resolveTrustStates({ validatedRecords: [binding, high, revoke] });
+
+    expect(result.trustState).toBe('REVOKED');
+    expect(result.evidence.revocations).toEqual([deriveRecordHash(revoke)]);
   });
 
-  it('is deterministic for identical validated records', () => {
+  it('does not double count duplicate endorsement records', () => {
     const binding = identityBinding();
     const bindingHash = deriveBindingHash(binding);
-    const records: DurableRecord[] = [binding, endorsement(bindingHash, { confidence_level: 'medium' })];
+    const duplicate = endorsement(bindingHash, {
+      endorser_binding_hash: 'endorser-a',
+      confidence_level: 'high',
+      signature: 'sig-a',
+    });
+
+    const [result] = resolveTrustStates({ validatedRecords: [binding, duplicate, duplicate] });
+
+    expect(result.evidence.endorsementSummary).toMatchObject({
+      positiveScore: 3,
+      negativeScore: 0,
+      netScore: 3,
+      endorsementHashes: [deriveRecordHash(duplicate)],
+    });
+  });
+
+  it('is deterministic for identical input order and permutations', () => {
+    const binding = identityBinding();
+    const bindingHash = deriveBindingHash(binding);
+    const records: DurableRecord[] = [
+      binding,
+      endorsement(bindingHash, {
+        endorser_binding_hash: 'endorser-c',
+        confidence_level: 'medium',
+        signature: 'sig-c',
+      }),
+      endorsement(bindingHash, {
+        endorser_binding_hash: 'endorser-a',
+        confidence_level: 'high',
+        signature: 'sig-a',
+      }),
+      endorsement(bindingHash, {
+        endorser_binding_hash: 'endorser-b',
+        confidence_level: 'low',
+        signature: 'sig-b',
+      }),
+    ];
 
     const first = resolveTrustStates({ validatedRecords: records });
     const second = resolveTrustStates({ validatedRecords: records });
+    const permutation = resolveTrustStates({ validatedRecords: [records[3], records[0], records[2], records[1]] });
 
     expect(first).toEqual(second);
+    expect(first).toEqual(permutation);
   });
 });
