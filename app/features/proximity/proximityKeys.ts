@@ -24,6 +24,23 @@ export function createProximityLocalKeys(randomBytes: RandomBytes = getRandomByt
   };
 }
 
+
+export type ProximityLocalKeysProvider = () => ProximityLocalKeys;
+
+export function createProximityLocalKeysProvider(
+  createLocalKeys: () => ProximityLocalKeys = createProximityLocalKeys
+): ProximityLocalKeysProvider {
+  let cache: ProximityLocalKeys | null = null;
+
+  return () => {
+    if (!cache) {
+      cache = createLocalKeys();
+    }
+
+    return cache;
+  };
+}
+
 export function createProximityNonceHex(randomBytes: RandomBytes = getRandomBytes): string {
   return encodeHex(randomBytes(16));
 }

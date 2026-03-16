@@ -1,4 +1,9 @@
-import { createProximityLocalKeys, createProximityNonceHex } from '@/app/features/proximity/proximityKeys';
+import {
+  createProximityLocalKeys,
+  createProximityLocalKeysProvider,
+  createProximityNonceHex,
+  type ProximityLocalKeys,
+} from '@/app/features/proximity/proximityKeys';
 
 describe('proximity key generation', () => {
   it('derives signer and ephemeral keypairs from injected random bytes without nacl PRNG', () => {
@@ -15,6 +20,22 @@ describe('proximity key generation', () => {
     expect(keys.signer.secretKey).toHaveLength(64);
     expect(keys.ephemeral.publicKey).toHaveLength(32);
     expect(keys.ephemeral.secretKey).toHaveLength(32);
+  });
+
+
+  it('creates local keys lazily and caches the first generated value', () => {
+    const keypair = createProximityLocalKeys((length) => new Uint8Array(length).fill(7));
+    const factory = jest.fn<ProximityLocalKeys, []>(() => keypair);
+
+    const getLocalKeys = createProximityLocalKeysProvider(factory);
+
+    expect(factory).not.toHaveBeenCalled();
+
+    const first = getLocalKeys();
+    const second = getLocalKeys();
+
+    expect(factory).toHaveBeenCalledTimes(1);
+    expect(first).toBe(second);
   });
 
   it('encodes nonce as 16-byte hex from injected random bytes', () => {
