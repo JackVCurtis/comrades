@@ -1,5 +1,9 @@
 import { hasSupportedRecordVersion, isDurableRecordType } from '../versions';
-import type { StructuralRecord, StructuralValidationResult } from './validationTypes';
+import type {
+  StructuralRecord,
+  StructuralValidationErrorCode,
+  StructuralValidationResult,
+} from './validationTypes';
 import { VALIDATION_LIMITS } from './validationLimits';
 import { validateEndorsementStructure } from './validators/endorsementValidator';
 import { validateHandshakeStructure } from './validators/handshakeValidator';
@@ -8,7 +12,7 @@ import { validateKeyRotationStructure } from './validators/keyRotationValidator'
 import { validateRevocationStructure } from './validators/revocationValidator';
 import { utf8ByteLength } from '@/app/utils/bytes';
 
-function invalid(reason: StructuralValidationResult['reason'], field?: string): StructuralValidationResult {
+function invalid(reason: StructuralValidationErrorCode, field?: string): StructuralValidationResult {
   return field ? { valid: false, reason, field } : { valid: false, reason };
 }
 

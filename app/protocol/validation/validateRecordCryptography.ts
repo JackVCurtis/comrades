@@ -10,19 +10,19 @@ export type CryptographicValidationErrorCode =
   | 'invalid_signature'
   | 'unsupported_record_type';
 
-export type CryptographicValidationResult =
-  | { valid: true }
-  | {
-      valid: false;
-      reason: CryptographicValidationErrorCode;
-      field: string;
-    };
+export type CryptographicValidationError = {
+  valid: false;
+  reason: CryptographicValidationErrorCode;
+  field: string;
+};
+
+export type CryptographicValidationResult = { valid: true } | CryptographicValidationError;
 
 export type CryptographicValidationContext = {
   resolvePublicKeyByBindingHash?: (bindingHash: string) => string | undefined;
 };
 
-function invalid(reason: CryptographicValidationErrorCode, field: string): CryptographicValidationResult {
+function invalid(reason: CryptographicValidationErrorCode, field: string): CryptographicValidationError {
   return { valid: false, reason, field };
 }
 
@@ -51,7 +51,7 @@ function resolveSignerKey(
   context: CryptographicValidationContext,
   bindingHash: string,
   field: string
-): { valid: true; publicKey: string } | CryptographicValidationResult {
+): { valid: true; publicKey: string } | CryptographicValidationError {
   const publicKey = context.resolvePublicKeyByBindingHash?.(bindingHash);
   if (!publicKey) {
     return invalid('signer_key_not_found', field);

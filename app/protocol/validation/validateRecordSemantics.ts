@@ -1,6 +1,6 @@
 import type { DurableRecord } from '../records';
 
-export type ValidationResult = 'accepted' | 'rejected' | 'conflicted';
+export type SemanticValidationResult = 'accepted' | 'rejected' | 'conflicted';
 
 export type SemanticValidationReason =
   | 'duplicate_record'
@@ -13,7 +13,7 @@ export type SemanticValidationReason =
 export type SemanticValidationOutcome =
   | { result: 'accepted' }
   | {
-      result: Exclude<ValidationResult, 'accepted'>;
+      result: Exclude<SemanticValidationResult, 'accepted'>;
       reason: SemanticValidationReason;
     };
 

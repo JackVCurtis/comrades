@@ -12,4 +12,11 @@ export * from './validators/identityBindingValidator';
 export * from './validators/keyRotationValidator';
 export * from './validators/revocationValidator';
 
-export * from './validateRecordSemantics';
+export {
+  validateRecordSemantics,
+  type SemanticValidationContext,
+  type SemanticValidationOutcome,
+  type SemanticValidationReason,
+  type SemanticValidationResult,
+  type SemanticLocalLogState,
+} from './validateRecordSemantics';

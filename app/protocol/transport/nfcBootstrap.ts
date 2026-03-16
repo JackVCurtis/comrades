@@ -10,6 +10,7 @@ import { encodeBase64 } from './encoding';
 import type {
   DecodedNfcBootstrapResult,
   NfcBootstrapV1,
+  NfcBootstrapValidationError,
   NfcBootstrapValidationResult,
   SignableNfcBootstrapV1,
 } from './nfcBootstrap.types';
@@ -26,7 +27,7 @@ const REQUIRED_FIELDS: (keyof NfcBootstrapV1)[] = [
 
 const NONCE_HEX_REGEX = /^[a-f0-9]{32}$/i;
 
-function invalid(reason: NfcBootstrapValidationResult['reason'], field: string): NfcBootstrapValidationResult {
+function invalid(reason: NfcBootstrapValidationError['reason'], field: string): NfcBootstrapValidationError {
   return { valid: false, reason, field };
 }
 

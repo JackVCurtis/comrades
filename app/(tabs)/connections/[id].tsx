@@ -14,8 +14,8 @@ export default function ConnectionDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const counterparty = useMemo(() => (id ? getCounterpartyById(id) : undefined), [id]);
 
-  const inputBackgroundColor = useThemeColor({}, 'backgroundSecondary');
-  const inputBorderColor = useThemeColor({}, 'borderSubtle');
+  const inputBackgroundColor = useThemeColor({}, 'surface');
+  const inputBorderColor = useThemeColor({}, 'border');
   const inputTextColor = useThemeColor({}, 'text');
 
   const [providedName, setProvidedName] = useState(counterparty?.providedName ?? '');

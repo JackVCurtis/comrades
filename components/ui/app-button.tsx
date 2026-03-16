@@ -17,11 +17,18 @@ export function AppButton({ label, loading = false, disabled, style, ...rest }: 
     <Pressable
       accessibilityRole="button"
       disabled={isDisabled}
-      style={({ pressed }) => [
-        styles.button,
-        { backgroundColor, opacity: isDisabled ? 0.5 : pressed ? 0.85 : 1 },
-        style,
-      ]}
+      style={(state) => {
+        const resolvedStyle = typeof style === 'function' ? style(state) : style;
+
+        return [
+          styles.button,
+          {
+            backgroundColor,
+            opacity: isDisabled ? 0.5 : state.pressed ? 0.85 : 1,
+          },
+          resolvedStyle,
+        ];
+      }}
       {...rest}>
       {loading ? <ActivityIndicator color={color} /> : <ThemedText style={[styles.label, { color }]}>{label}</ThemedText>}
     </Pressable>
