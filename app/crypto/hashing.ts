@@ -11,7 +11,8 @@ export function concatBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
 }
 
 async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
-  const hashBuffer = await digest(CryptoDigestAlgorithm.SHA256, bytes);
+  const digestInput = Uint8Array.from(bytes);
+  const hashBuffer = await digest(CryptoDigestAlgorithm.SHA256, digestInput);
   return new Uint8Array(hashBuffer);
 }
 

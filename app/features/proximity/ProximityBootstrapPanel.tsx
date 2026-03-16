@@ -45,8 +45,8 @@ function getFailureMessage(state: ProximitySessionState): string | null {
 }
 
 export function ProximityBootstrapPanel() {
-  const inputBackgroundColor = useThemeColor({}, 'backgroundSecondary');
-  const inputBorderColor = useThemeColor({}, 'borderSubtle');
+  const inputBackgroundColor = useThemeColor({}, 'surface');
+  const inputBorderColor = useThemeColor({}, 'border');
   const inputTextColor = useThemeColor({}, 'text');
   const {
     state,

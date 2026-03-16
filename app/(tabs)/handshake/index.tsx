@@ -46,8 +46,8 @@ function getExchangeStatus(stepIndex: number): {
 }
 
 export default function HandshakeScreen() {
-  const inputBackgroundColor = useThemeColor({}, "backgroundSecondary");
-  const inputBorderColor = useThemeColor({}, "borderSubtle");
+  const inputBackgroundColor = useThemeColor({}, "surface");
+  const inputBorderColor = useThemeColor({}, "border");
   const inputTextColor = useThemeColor({}, "text");
   const mutedTextColor = useThemeColor({}, "textMuted");
   const statusNeutralColor = useThemeColor({}, "neutral");
