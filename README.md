@@ -311,11 +311,11 @@ REVOKED
 
 ## 4) Deterministic Merkle log
 
-* [ ] Implement append-only record storage
-* [ ] Deterministic leaf ordering (`sort by leaf_hash`)
-* [ ] Reproducible Merkle root generation
-* [ ] Merkle proof generation and verification APIs
-* [ ] Subtree diff and missing-leaf discovery
+* [x] Implement append-only record storage
+* [x] Deterministic leaf ordering (`sort by leaf_hash`)
+* [x] Reproducible Merkle root generation
+* [x] Merkle proof generation and verification APIs
+* [x] Subtree diff and missing-leaf discovery
 
 Add conformance tests for:
 
