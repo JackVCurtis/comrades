@@ -15,6 +15,20 @@ function makeIdentityBinding(seed: string): DurableRecord {
 }
 
 describe('merkleLeaf helpers', () => {
+  it('does not require the Node crypto module to load', () => {
+    jest.resetModules();
+    jest.doMock('crypto', () => {
+      throw new Error('Node crypto is unavailable');
+    });
+
+    expect(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('../merkleLeaf');
+    }).not.toThrow();
+
+    jest.dontMock('crypto');
+  });
+
   it('deriveRecordHash is deterministic for the same record', () => {
     const record = makeIdentityBinding('deterministic');
 

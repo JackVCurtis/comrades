@@ -1,4 +1,5 @@
-import { createHash } from 'crypto';
+
+import { sha256Hex } from '@/app/protocol/crypto/hash';
 
 import type {
   DurableRecord,
@@ -23,7 +24,7 @@ export interface TrustIndexes {
 
 export function deriveRecordHash(record: DurableRecord): string {
   const canonical = canonicalSerialize(record as unknown as Record<string, unknown>);
-  const hash = createHash('sha256').update(canonical).digest('hex');
+  const hash = sha256Hex([canonical]);
   return `hash_${hash}`;
 }
 

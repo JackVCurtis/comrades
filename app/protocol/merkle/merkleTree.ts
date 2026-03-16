@@ -1,6 +1,6 @@
 import type { MerkleLeaf } from './merkleLeaf';
 import { sortMerkleLeaves } from './merkleLeaf';
-import { createHash } from 'crypto';
+import { hexToBytes, sha256Hex } from '@/app/protocol/crypto/hash';
 
 export interface MerkleTree {
   leaves: MerkleLeaf[];
@@ -9,7 +9,7 @@ export interface MerkleTree {
 }
 
 function hashNodePair(left: string, right: string): string {
-  return createHash('sha256').update(Buffer.from(left, 'hex')).update(Buffer.from(right, 'hex')).digest('hex');
+  return sha256Hex([hexToBytes(left), hexToBytes(right)]);
 }
 
 export function buildMerkleTree(leaves: MerkleLeaf[]): MerkleTree {
