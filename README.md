@@ -118,9 +118,9 @@ PGT uses two local communication technologies.
 
 ---
 
-## NFC
+## QR
 
-NFC is used only to bootstrap a session and prove physical proximity.
+QR is the bootstrap transport in this implementation slice and is used to prove in-person payload exchange before BLE session setup.
 
 The bootstrap exchanges:
 
@@ -154,8 +154,8 @@ docs/
   canonical-serialization.md
   hash-domains.md
   schema-versioning.md
-  nfc-bootstrap.md
-  manual-nfc-ble-session-test.md
+  qr-bootstrap.md
+  manual-qr-ble-session-test.md
   crypto-layer.md
 ```
 
@@ -189,7 +189,7 @@ Current implementation focus:
 
 Android is the initial target platform.
 
-iOS support is planned with a more limited NFC role.
+iOS support remains planned; this slice uses camera-based QR bootstrap and BLE session sync.
 
 ---
 
@@ -328,30 +328,30 @@ Add conformance tests for:
 ## 5) Proximity bootstrap and BLE synchronization
 
 
-### Native runtime requirements (NFC/BLE)
+### Native runtime requirements (QR camera/BLE)
 
-- `react-native-nfc-manager` and `react-native-ble-plx` are native modules configured through Expo config plugins in `app.json`.
-- Use an Expo development build (Dev Client) or EAS/local native build after `expo prebuild`; **Expo Go is not sufficient** for full NFC/BLE testing.
+- `expo-camera` and `react-native-ble-plx` are native modules configured through Expo config plugins in `app.json`.
+- Use an Expo development build (Dev Client) or EAS/local native build after `expo prebuild`; **Expo Go is not sufficient** for full QR/BLE testing.
 - After changing plugin or permission configuration, regenerate native projects (`npx expo prebuild`) and rebuild the app binary.
 - BLE scan + advertise flow requires Bluetooth + location permissions on Android (including Android 12+ runtime Bluetooth permissions).
 
 ---
 This stage implements the proximity session bootstrap and Merkle log synchronization using the following libraries:
 
-- **NFC:** `react-native-nfc-manager`
+- **QR scan/generation:** `expo-camera` + `react-native-qrcode-svg`
 - **BLE:** `react-native-ble-plx`
 
-NFC is used only to bootstrap a session and prove physical proximity.  
-BLE carries the encrypted synchronization traffic.
+QR is the bootstrap transport in this implementation slice.  
+BLE carries the encrypted synchronization traffic and all synchronization messages.
 
 ---
 
 ### Bootstrap payload definition
 
-* [x] Define and version the `NfcBootstrap` payload used to initiate a synchronization session:
+* [x] Define and version the `QrBootstrap` payload used to initiate a synchronization session:
 
 ```
-NfcBootstrap {
+QrBootstrap {
   session_uuid
   identity_binding_hash
   ephemeral_public_key
@@ -366,9 +366,9 @@ The payload must be serialized deterministically and validated before use.
 
 ---
 
-### NFC bootstrap implementation (`react-native-nfc-manager`)
+### QR bootstrap implementation (`expo-camera` + `react-native-qrcode-svg`)
 
-* [x] Implement minimal NFC bootstrap exchange scaffolding for manual testing using `react-native-nfc-manager` integration points.
+* [x] Implement minimal QR bootstrap generate/scan scaffolding for manual testing using `expo-camera` and `react-native-qrcode-svg`.
 
 Bootstrap exchange must transmit:
 
@@ -381,7 +381,8 @@ Bootstrap exchange must transmit:
 
 Responsibilities:
 
-* read NDEF payload from peer device
+* render bootstrap payload as QR on writer device
+* scan bootstrap payload with camera on reader device
 * parse bootstrap payload
 * verify payload signature
 * bind bootstrap payload to a pending BLE session
@@ -420,7 +421,7 @@ Bootstrap parsing must **fail closed**.
 Responsibilities:
 
 * advertise BLE service using `bluetooth_service_uuid`
-* scan for the service UUID received from NFC bootstrap
+* scan for the service UUID received from QR bootstrap
 * connect to discovered peer device
 * verify the connection matches the active bootstrap session
 
@@ -433,7 +434,7 @@ BLE sessions must be rejected when:
 
 ### Authenticated encrypted session establishment
 
-* [x] Implement minimal authenticated session confirmation using NFC-exchanged ephemeral keys and `session_uuid` binding.
+* [x] Implement minimal authenticated session confirmation using QR-exchanged ephemeral keys and `session_uuid` binding.
 
 Steps:
 

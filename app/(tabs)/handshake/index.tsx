@@ -180,7 +180,7 @@ export default function HandshakeScreen() {
                 />
 
                 <AppButton
-                  label="Continue to NFC exchange"
+                  label="Continue to QR exchange"
                   onPress={beginExchange}
                   disabled={!canContinue}
                 />
@@ -193,7 +193,7 @@ export default function HandshakeScreen() {
                   Hold phones next to each other
                 </ThemedText>
                 <ThemedText>
-                  Keep both devices close while we simulate NFC payload exchange
+                  Keep both devices close while we simulate QR payload exchange
                   and trust tree verification.
                 </ThemedText>
 

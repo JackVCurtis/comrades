@@ -13,7 +13,7 @@
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "EasyPGT uses Bluetooth to discover and connect to nearby peers for proximity handshakes.",
         "NSBluetoothPeripheralUsageDescription": "EasyPGT uses Bluetooth to exchange signed session data with nearby peers.",
-        "NFCReaderUsageDescription": "EasyPGT uses NFC to bootstrap authenticated proximity sessions."
+        "NSCameraUsageDescription": "EasyPGT uses the camera to scan QR bootstrap payloads before BLE session authentication."
       }
     },
     "android": {
@@ -31,10 +31,10 @@
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.BLUETOOTH_ADVERTISE",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.NFC",
         "android.permission.BLUETOOTH",
         "android.permission.BLUETOOTH_ADMIN",
-        "android.permission.ACCESS_COARSE_LOCATION"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -62,13 +62,6 @@
         }
       ],
       [
-        "react-native-nfc-manager",
-        {
-          "nfcPermission": "EasyPGT uses NFC to bootstrap authenticated proximity sessions.",
-          "includeNdefEntitlement": true
-        }
-      ],
-      [
         "react-native-ble-plx",
         {
           "isBackgroundEnabled": true,
@@ -77,6 +70,12 @@
             "peripheral"
           ],
           "bluetoothAlwaysPermission": "EasyPGT uses Bluetooth to discover and connect to nearby peers for proximity handshakes."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "EasyPGT uses the camera to scan QR bootstrap payloads before BLE session authentication."
         }
       ]
     ],

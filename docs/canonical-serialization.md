@@ -6,7 +6,7 @@ The goal is to ensure that identical logical objects always produce identical by
 
 ## Scope and compatibility
 
-- Applies to durable protocol records (for example `identity_binding`, `endorsement`, `handshake`, `key_rotation`, `revocation`) and other signed protocol payloads such as NFC bootstrap payloads described in the architecture guide.
+- Applies to durable protocol records (for example `identity_binding`, `endorsement`, `handshake`, `key_rotation`, `revocation`) and other signed protocol payloads such as QR bootstrap payloads described in the architecture guide.
 - Preserves existing protocol field names and cryptographic workflows.
 - Produces byte output suitable for deterministic hashing and Merkle leaf derivation.
 
@@ -110,7 +110,7 @@ Hash example:
 SHA256(canonical_bytes) = e5f4ef1927f3674ec458deb28a84be974f3a08a4e8829b8f1dad909af8be3cbe
 ```
 
-### Vector 2: NFC bootstrap fragment (optional field omitted)
+### Vector 2: QR bootstrap fragment (optional field omitted)
 
 Input object (JSON-like):
 
