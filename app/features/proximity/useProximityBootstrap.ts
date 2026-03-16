@@ -45,19 +45,31 @@ export function useProximityBootstrap() {
 
   const prepareWriterPayload = (identityBindingHash: string, bluetoothServiceUuid: string) => {
     dispatch({ type: 'set_status', status: 'nfc_preparing' });
-    const signable: SignableNfcBootstrapV1 = {
-      version: 1,
-      session_uuid: createProximitySessionUuid(),
-      identity_binding_hash: identityBindingHash,
-      ephemeral_public_key: toBase64(ensureLocalKeys().ephemeral.publicKey),
-      bluetooth_service_uuid: bluetoothServiceUuid,
-      nonce: createProximityNonceHex(),
-    };
+    try {
+      const signable: SignableNfcBootstrapV1 = {
+        version: 1,
+        session_uuid: createProximitySessionUuid(),
+        identity_binding_hash: identityBindingHash,
+        ephemeral_public_key: toBase64(ensureLocalKeys().ephemeral.publicKey),
+        bluetooth_service_uuid: bluetoothServiceUuid,
+        nonce: createProximityNonceHex(),
+      };
 
-    const signed = signNfcBootstrap(signable, ensureLocalKeys().signer.secretKey);
-    setBootstrapPayload(signed);
-    setDiagnostic('Bootstrap payload generated and ready for NFC handoff.');
-    dispatch({ type: 'set_status', status: 'nfc_ready' });
+      const signed = signNfcBootstrap(signable, ensureLocalKeys().signer.secretKey);
+      setBootstrapPayload(signed);
+      setDiagnostic('Bootstrap payload generated and ready for NFC handoff.');
+      dispatch({ type: 'set_status', status: 'nfc_ready' });
+    } catch (error) {
+      const reason = 'WRITER_PAYLOAD_BUILD_FAILED';
+      setBootstrapPayload(null);
+      setDiagnostic(`Bootstrap payload generation failed (${reason}). Please retry.`);
+      dispatch({ type: 'failed', reason });
+
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.warn('prepareWriterPayload failed', error);
+      }
+    }
   };
 
   const readerReceivePayload = (payload: unknown, expectedSignerPublicKey: string) => {
