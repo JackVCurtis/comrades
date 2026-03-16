@@ -106,11 +106,17 @@ describe('validateRecord cryptographic checks', () => {
   validRevocation.signature = signRecordPayload(validRevocation, identityA.secretKey);
 
   it('accepts a valid identity_binding self-signature and rejects tampered payloads', () => {
-    expect(validateRecord(validIdentityBinding, context)).toEqual({ accepted: true });
+    expect(validateRecord(validIdentityBinding, context)).toEqual({
+      status: 'accepted',
+      reason: 'validation_passed',
+      details: {
+        source: 'record_validation',
+      },
+    });
 
     const tampered = { ...validIdentityBinding, key_epoch: 999 };
     expect(validateRecord(tampered, context)).toMatchObject({
-      accepted: false,
+      status: 'rejected',
       phase: 'cryptographic',
       reason: 'invalid_signature',
       field: 'self_signature',
@@ -118,14 +124,20 @@ describe('validateRecord cryptographic checks', () => {
   });
 
   it('accepts handshake signatures and rejects missing, invalid, and wrong-key signatures', () => {
-    expect(validateRecord(validHandshake, context)).toEqual({ accepted: true });
+    expect(validateRecord(validHandshake, context)).toEqual({
+      status: 'accepted',
+      reason: 'validation_passed',
+      details: {
+        source: 'record_validation',
+      },
+    });
 
     const missingSig = {
       ...validHandshake,
       signatures: { ...validHandshake.signatures, participant_b: 'YQ==' },
     };
     expect(validateRecord(missingSig, context)).toMatchObject({
-      accepted: false,
+      status: 'rejected',
       phase: 'cryptographic',
       reason: 'signature_decode_failed',
       field: 'signatures.participant_b',
@@ -136,7 +148,7 @@ describe('validateRecord cryptographic checks', () => {
       signatures: { ...validHandshake.signatures, participant_b: toBase64(nacl.randomBytes(64)) },
     };
     expect(validateRecord(invalidSig, context)).toMatchObject({
-      accepted: false,
+      status: 'rejected',
       phase: 'cryptographic',
       reason: 'invalid_signature',
       field: 'signatures.participant_b',
@@ -150,7 +162,7 @@ describe('validateRecord cryptographic checks', () => {
       },
     };
     expect(validateRecord(wrongSigner, context)).toMatchObject({
-      accepted: false,
+      status: 'rejected',
       phase: 'cryptographic',
       reason: 'invalid_signature',
       field: 'signatures.participant_a',
@@ -158,11 +170,17 @@ describe('validateRecord cryptographic checks', () => {
   });
 
   it('accepts and rejects endorsement signatures based on payload and signer key', () => {
-    expect(validateRecord(validEndorsement, context)).toEqual({ accepted: true });
+    expect(validateRecord(validEndorsement, context)).toEqual({
+      status: 'accepted',
+      reason: 'validation_passed',
+      details: {
+        source: 'record_validation',
+      },
+    });
 
     const tampered = { ...validEndorsement, confidence_level: 'low' as const };
     expect(validateRecord(tampered, context)).toMatchObject({
-      accepted: false,
+      status: 'rejected',
       phase: 'cryptographic',
       reason: 'invalid_signature',
       field: 'signature',
@@ -178,7 +196,7 @@ describe('validateRecord cryptographic checks', () => {
     };
 
     expect(validateRecord(validEndorsement, wrongSignerContext)).toMatchObject({
-      accepted: false,
+      status: 'rejected',
       phase: 'cryptographic',
       reason: 'invalid_signature',
       field: 'signature',
@@ -186,8 +204,20 @@ describe('validateRecord cryptographic checks', () => {
   });
 
   it('accepts key_rotation and revocation signer checks and rejects unauthorized signers', () => {
-    expect(validateRecord(validKeyRotation, context)).toEqual({ accepted: true });
-    expect(validateRecord(validRevocation, context)).toEqual({ accepted: true });
+    expect(validateRecord(validKeyRotation, context)).toEqual({
+      status: 'accepted',
+      reason: 'validation_passed',
+      details: {
+        source: 'record_validation',
+      },
+    });
+    expect(validateRecord(validRevocation, context)).toEqual({
+      status: 'accepted',
+      reason: 'validation_passed',
+      details: {
+        source: 'record_validation',
+      },
+    });
 
     const unauthorizedContext = {
       resolvePublicKeyByBindingHash(bindingHash: string) {
@@ -199,13 +229,13 @@ describe('validateRecord cryptographic checks', () => {
     };
 
     expect(validateRecord(validKeyRotation, unauthorizedContext)).toMatchObject({
-      accepted: false,
+      status: 'rejected',
       phase: 'cryptographic',
       reason: 'invalid_signature',
       field: 'signatures.new_key',
     });
     expect(validateRecord(validRevocation, unauthorizedContext)).toMatchObject({
-      accepted: false,
+      status: 'rejected',
       phase: 'cryptographic',
       reason: 'invalid_signature',
       field: 'signature',
@@ -218,10 +248,13 @@ describe('validateRecord cryptographic checks', () => {
     const resultB = validateRecord(malformed, context);
 
     expect(resultA).toEqual({
-      accepted: false,
+      status: 'rejected',
       phase: 'cryptographic',
       reason: 'signature_decode_failed',
       field: 'self_signature',
+      details: {
+        source: 'record_validation',
+      },
     });
     expect(resultA).toEqual(resultB);
   });

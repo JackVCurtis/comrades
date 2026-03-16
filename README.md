@@ -280,7 +280,7 @@ Required checks:
 * conflicting payload detection
 * key rotation monotonicity checks
 
-- [ ] Add auditable validation results:
+- [x] Add auditable validation results:
 
 ```
 accepted
