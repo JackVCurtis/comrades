@@ -1,5 +1,4 @@
 import { useMemo, useReducer, useState } from 'react';
-import nacl from 'tweetnacl';
 
 import {
   createPendingBootstrapSession,
@@ -12,9 +11,9 @@ import {
   type NfcBootstrapV1,
   type SignableNfcBootstrapV1,
   encodeBase64,
-  encodeHex,
 } from '@/app/protocol/transport';
 
+import { createProximityLocalKeys, createProximityNonceHex } from './proximityKeys';
 import { proximitySessionReducer } from './proximityState';
 
 type ProximityRole = 'writer' | 'reader';
@@ -23,14 +22,11 @@ function toBase64(bytes: Uint8Array): string {
   return encodeBase64(bytes);
 }
 
-function randomNonceHex(): string {
-  return encodeHex(nacl.randomBytes(16));
-}
-
 export function useProximityBootstrap() {
   const [state, dispatch] = useReducer(proximitySessionReducer, { status: 'idle' as const });
-  const [localSigner] = useState(() => nacl.sign.keyPair());
-  const [localEphemeral] = useState(() => nacl.box.keyPair());
+  const [localKeys] = useState(() => createProximityLocalKeys());
+  const localSigner = localKeys.signer;
+  const localEphemeral = localKeys.ephemeral;
   const [bootstrapPayload, setBootstrapPayload] = useState<NfcBootstrapV1 | null>(null);
   const [diagnostic, setDiagnostic] = useState<string>('');
 
@@ -44,7 +40,7 @@ export function useProximityBootstrap() {
       identity_binding_hash: identityBindingHash,
       ephemeral_public_key: toBase64(localEphemeral.publicKey),
       bluetooth_service_uuid: bluetoothServiceUuid,
-      nonce: randomNonceHex(),
+      nonce: createProximityNonceHex(),
     };
 
     const signed = signNfcBootstrap(signable, localSigner.secretKey);
