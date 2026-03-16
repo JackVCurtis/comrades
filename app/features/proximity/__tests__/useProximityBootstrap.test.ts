@@ -54,7 +54,7 @@ describe('useProximityBootstrap prepareWriterPayload error handling', () => {
     mockSignNfcBootstrap.mockImplementation(() => {
       throw new Error('signing exploded');
     });
-
+  });
 
   it('does not throw during payload generation', () => {
     const { result } = renderHook(() => useProximityBootstrap());
