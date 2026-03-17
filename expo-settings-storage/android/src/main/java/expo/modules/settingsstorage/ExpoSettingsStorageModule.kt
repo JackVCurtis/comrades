@@ -1,12 +1,10 @@
 package expo.modules.settingsstorage
 
-import android.os.Build
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.content.SharedPreferences
 import android.util.Base64
-import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
-import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
-import androidx.biometric.BiometricPrompt
-import androidx.core.content.ContextCompat
-import androidx.fragment.app.FragmentActivity
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -18,8 +16,6 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import android.content.Context
-import android.content.SharedPreferences
 
 class ExpoSettingsStorageModule : Module() {
   companion object {
@@ -32,11 +28,14 @@ class ExpoSettingsStorageModule : Module() {
     private const val TAG_SIZE_BITS = 128
   }
 
+  private var pendingGetPromise: Promise? = null
+  private var pendingGetKey: String? = null
+  private var authHelper: DeviceAuthHelper? = null
+
   override fun definition() = ModuleDefinition {
     Name(MODULE_NAME)
 
     AsyncFunction("setItem") { key: String, value: String ->
-      ensureApiLevel()
       val cipher = Cipher.getInstance(TRANSFORMATION)
       cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
       val ciphertext = cipher.doFinal(value.toByteArray(StandardCharsets.UTF_8))
@@ -45,87 +44,91 @@ class ExpoSettingsStorageModule : Module() {
     }
 
     AsyncFunction("getItem") { key: String, promise: Promise ->
-      try {
-        ensureApiLevel()
+      val payload = prefs().getString(key, null)
+      if (payload == null) {
+        promise.resolve(null)
+        return@AsyncFunction
+      }
 
-        val payload = prefs().getString(key, null)
-        if (payload == null) {
-          promise.resolve(null)
-          return@AsyncFunction
-        }
+      val activity = appContext.currentActivity
+      if (activity == null) {
+        promise.reject("ERR_NO_ACTIVITY", "No foreground activity available")
+        return@AsyncFunction
+      }
 
-        val activity = appContext.currentActivity
-        if (activity == null) {
-          promise.reject("ERR_NO_ACTIVITY", "No foreground activity available", null)
-          return@AsyncFunction
-        }
+      if (pendingGetPromise != null) {
+        promise.reject("ERR_BUSY", "Another secure read is already in progress")
+        return@AsyncFunction
+      }
 
-        val fragmentActivity = activity as? FragmentActivity
-        if (fragmentActivity == null) {
-          promise.reject(
-            "ERR_ACTIVITY_TYPE",
-            "Current activity does not support biometric prompts",
-            null
-          )
-          return@AsyncFunction
-        }
+      pendingGetPromise = promise
+      pendingGetKey = key
 
-        val (iv, ciphertext) = decode(payload)
-        val cipher = Cipher.getInstance(TRANSFORMATION)
-        val secretKey = getOrCreateSecretKey()
-        val spec = GCMParameterSpec(TAG_SIZE_BITS, iv)
+      authHelper = DeviceAuthHelper(
+        activity = activity,
+        onSuccess = { finishPendingDecrypt() },
+        onError = { message -> rejectPending("ERR_AUTH", message) }
+      )
 
-        val executor = ContextCompat.getMainExecutor(fragmentActivity)
-        val prompt = BiometricPrompt(
-          fragmentActivity,
-          executor,
-          object : BiometricPrompt.AuthenticationCallback() {
-            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-              promise.reject("ERR_AUTH", errString.toString(), null)
-            }
-
-            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-              try {
-                val cryptoObject = result.cryptoObject
-                val authenticatedCipher = cryptoObject?.cipher
-                  ?: throw IllegalStateException("Missing cipher from authentication result")
-                val plaintextBytes = authenticatedCipher.doFinal(ciphertext)
-                val plaintext = String(plaintextBytes, StandardCharsets.UTF_8)
-                promise.resolve(plaintext)
-              } catch (e: Exception) {
-                promise.reject("ERR_DECRYPT", "Failed to decrypt value", e)
-              }
-            }
-
-            override fun onAuthenticationFailed() {
-              // Let the system continue; no reject here.
-            }
-          }
-        )
-
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
-
-        val promptInfo = BiometricPrompt.PromptInfo.Builder()
-          .setTitle("Unlock secure settings")
-          .setSubtitle("Use biometrics or screen lock")
-          .setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
-          .build()
-
-        prompt.authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))
-      } catch (e: Exception) {
-        promise.reject("ERR_GET_ITEM", "Failed to load protected value", e)
+      val launched = authHelper!!.authenticate(force = true)
+      if (!launched) {
+        rejectPending("ERR_AUTH", "Unable to launch authentication")
       }
     }
 
     AsyncFunction("deleteItem") { key: String ->
       prefs().edit().remove(key).apply()
     }
+
+    OnActivityResult { _, payload ->
+      val intent = payload.data
+      val handled = authHelper?.onActivityResult(payload.requestCode, payload.resultCode) ?: false
+      if (handled) {
+        null
+      } else {
+        intent
+      }
+    }
   }
 
-  private fun ensureApiLevel() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-      throw IllegalStateException("This minimal implementation requires Android 11+ (API 30+)")
+  private fun finishPendingDecrypt() {
+    val promise = pendingGetPromise ?: return
+    val key = pendingGetKey ?: return
+
+    try {
+      val payload = prefs().getString(key, null)
+      if (payload == null) {
+        promise.resolve(null)
+        clearPending()
+        return
+      }
+
+      val (iv, ciphertext) = decode(payload)
+      val cipher = Cipher.getInstance(TRANSFORMATION)
+      cipher.init(
+        Cipher.DECRYPT_MODE,
+        getOrCreateSecretKey(),
+        GCMParameterSpec(TAG_SIZE_BITS, iv)
+      )
+
+      val plaintextBytes = cipher.doFinal(ciphertext)
+      promise.resolve(String(plaintextBytes, StandardCharsets.UTF_8))
+    } catch (e: Exception) {
+      promise.reject("ERR_DECRYPT", "Failed to decrypt value", e)
+    } finally {
+      clearPending()
     }
+  }
+
+  private fun rejectPending(code: String, message: String) {
+    pendingGetPromise?.reject(code, message)
+    clearPending()
+  }
+
+  private fun clearPending() {
+    pendingGetPromise = null
+    pendingGetKey = null
+    authHelper = null
   }
 
   private fun prefs(): SharedPreferences {
@@ -148,11 +151,6 @@ class ExpoSettingsStorageModule : Module() {
       .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
       .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
       .setKeySize(256)
-      .setUserAuthenticationRequired(true)
-      .setUserAuthenticationParameters(
-        0,
-        KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL
-      )
       .build()
 
     keyGenerator.init(spec)
