@@ -69,7 +69,7 @@ export async function probeSecureStoreReadiness(): Promise<PermissionCheckResult
     ) {
       return {
         status: 'denied',
-        errorMessage: 'Secure key storage permission was denied by the OS.',
+        errorMessage: `Secure key storage permission was denied by the OS.: ${message}`,
       };
     }
 
