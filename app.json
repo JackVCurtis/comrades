@@ -1,19 +1,19 @@
 {
   "expo": {
     "name": "easy-pgt",
-    "slug": "easypgt",
+    "slug": "comrades",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "easypgt",
+    "scheme": "comrades",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSBluetoothAlwaysUsageDescription": "EasyPGT uses Bluetooth to discover and connect to nearby peers for proximity handshakes.",
-        "NSBluetoothPeripheralUsageDescription": "EasyPGT uses Bluetooth to exchange signed session data with nearby peers.",
-        "NSCameraUsageDescription": "EasyPGT uses the camera to scan QR bootstrap payloads before BLE session authentication."
+        "NSBluetoothAlwaysUsageDescription": "Comrades uses Bluetooth to discover and connect to nearby peers for proximity handshakes.",
+        "NSBluetoothPeripheralUsageDescription": "Comrades uses Bluetooth to exchange signed session data with nearby peers.",
+        "NSCameraUsageDescription": "Comrades uses the camera to scan QR bootstrap payloads before BLE session authentication."
       }
     },
     "android": {
@@ -25,7 +25,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.jack.v.curtis.easypgt",
+      "package": "com.jack.v.curtis.comrades",
       "permissions": [
         "android.permission.BLUETOOTH_SCAN",
         "android.permission.BLUETOOTH_CONNECT",
@@ -58,7 +58,7 @@
       [
         "expo-secure-store",
         {
-          "faceIDPermission": "EasyPGT uses secure storage to protect identity keys behind device authentication."
+          "faceIDPermission": "Comrades uses secure storage to protect identity keys behind device authentication."
         }
       ],
       [
@@ -69,13 +69,13 @@
             "central",
             "peripheral"
           ],
-          "bluetoothAlwaysPermission": "EasyPGT uses Bluetooth to discover and connect to nearby peers for proximity handshakes."
+          "bluetoothAlwaysPermission": "Comrades uses Bluetooth to discover and connect to nearby peers for proximity handshakes."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "EasyPGT uses the camera to scan QR bootstrap payloads before BLE session authentication."
+          "cameraPermission": "Comrades uses the camera to scan QR bootstrap payloads before BLE session authentication."
         }
       ]
     ],
