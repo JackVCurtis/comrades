@@ -27,26 +27,10 @@ export async function probeSecureStoreReadiness(): Promise<PermissionCheckResult
         errorMessage: 'Secure key storage is unavailable on this device.',
       };
     }
-
-    if (
-      message.includes('cancel') ||
-      message.includes('canceled') ||
-      message.includes('cancelled') ||
-      message.includes('denied') ||
-      message.includes('not authenticated') ||
-      message.includes('authentication') ||
-      message.includes('biometric') ||
-      message.includes('passcode')
-    ) {
-      return {
-        status: 'denied',
-        errorMessage: `Secure key storage permission was denied by the OS.: ${message}`,
-      };
-    }
-
+    
     return {
       status: 'denied',
-      errorMessage: 'Secure key storage permission was denied by the OS.',
+      errorMessage: `Secure key storage permission was denied by the OS. ${message}`,
     };
   }
 }
