@@ -1,17 +1,8 @@
-import * as SecureStore from 'expo-secure-store';
-
-import type { SecureStorageMode } from '@/app/security/secureStorageCapabilities';
-
-const STORAGE_MODE_KEY = 'comrades.secure-storage.mode.v1';
-
-const AUTH_OPTIONS: SecureStore.SecureStoreOptions = {
-  requireAuthentication: true,
-  authenticationPrompt: 'Unlock your device to access protected Comrades data.',
-};
+import SettingsStorage from 'expo-settings-storage';
 
 export type SecureStoreAdapter = {
-  getItem(key: string, options?: SecureStore.SecureStoreOptions): Promise<string | null>;
-  setItem(key: string, value: string, options?: SecureStore.SecureStoreOptions): Promise<void>;
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
   deleteItem(key: string): Promise<void>;
 };
 
@@ -39,14 +30,14 @@ export function createInMemorySecureStoreAdapter(initialData: Record<string, str
 
 export function createExpoSecureStoreAdapter(): SecureStoreAdapter {
   return {
-    async getItem(key: string, options?: SecureStore.SecureStoreOptions) {
-      return SecureStore.getItemAsync(key, options);
+    async getItem(key: string) {
+      return SettingsStorage.getItem(key)
     },
-    async setItem(key: string, value: string, options?: SecureStore.SecureStoreOptions) {
-      await SecureStore.setItemAsync(key, value, options);
+    async setItem(key: string, value: string) {
+      await SettingsStorage.setItem(key, value);
     },
     async deleteItem(key: string) {
-      await SecureStore.deleteItemAsync(key);
+      await SettingsStorage.deleteItem(key);
     },
   };
 }
@@ -61,36 +52,19 @@ function isInvalidatedAuthError(message: string): boolean {
   );
 }
 
-export async function setSecureStorageMode(mode: SecureStorageMode, adapter: SecureStoreAdapter = createExpoSecureStoreAdapter()) {
-  await adapter.setItem(STORAGE_MODE_KEY, mode);
-}
-
-export async function getSecureStorageMode(adapter: SecureStoreAdapter = createExpoSecureStoreAdapter()): Promise<SecureStorageMode> {
-  const persisted = await adapter.getItem(STORAGE_MODE_KEY);
-
-  if (
-    persisted === 'authenticated-secure-store' ||
-    persisted === 'secure-store-without-auth' ||
-    persisted === 'defer-sensitive-persistence'
-  ) {
-    return persisted;
-  }
-
-  return 'authenticated-secure-store';
-}
 
 export function createSecureValueStore(options: { adapter?: SecureStoreAdapter } = {}) {
   const adapter = options.adapter ?? createExpoSecureStoreAdapter();
 
   return {
-    async readValue(key: string, mode: SecureStorageMode): Promise<SecureReadResult> {
+    async readValue(key: string): Promise<SecureReadResult> {
       try {
-        const value = await adapter.getItem(key, mode === 'authenticated-secure-store' ? AUTH_OPTIONS : undefined);
+        const value = await adapter.getItem(key);
         return { status: 'ok', value };
       } catch (error) {
         const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
 
-        if (mode === 'authenticated-secure-store' && isInvalidatedAuthError(message)) {
+        if (isInvalidatedAuthError(message)) {
           await adapter.deleteItem(key);
           return {
             status: 'invalidated',
@@ -103,8 +77,4 @@ export function createSecureValueStore(options: { adapter?: SecureStoreAdapter }
       }
     },
   };
-}
-
-export function getSecureStoreOptionsForMode(mode: SecureStorageMode): SecureStore.SecureStoreOptions | undefined {
-  return mode === 'authenticated-secure-store' ? AUTH_OPTIONS : undefined;
 }

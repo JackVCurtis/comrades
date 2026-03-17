@@ -1,15 +1,15 @@
-import * as SecureStore from 'expo-secure-store';
+import { generateIdentityKeypair } from '@/app/protocol/crypto/crypto';
 import {
   createExpoSecureStoreAdapter,
   createInMemorySecureStoreAdapter,
   createSecureKeyStorage,
 } from '@/app/protocol/crypto/keyStorage';
-import { generateIdentityKeypair } from '@/app/protocol/crypto/crypto';
+import SettingsStorage from 'expo-settings-storage';
 
-jest.mock('expo-secure-store', () => ({
-  getItemAsync: jest.fn(),
-  setItemAsync: jest.fn(),
-  deleteItemAsync: jest.fn(),
+jest.mock('expo-settings-storage', () => ({
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  deleteItem: jest.fn(),
 }));
 
 describe('secure key storage', () => {
@@ -65,8 +65,8 @@ describe('secure key storage', () => {
   });
 
   it('uses authenticated secure-store options for identity keypair reads and writes', async () => {
-    const getItemAsync = jest.mocked(SecureStore.getItemAsync);
-    const setItemAsync = jest.mocked(SecureStore.setItemAsync);
+    const getItemAsync = jest.mocked(SettingsStorage.getItem);
+    const setItemAsync = jest.mocked(SettingsStorage.setItem);
 
     getItemAsync.mockResolvedValueOnce(null);
     getItemAsync.mockResolvedValueOnce(null);

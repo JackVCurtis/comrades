@@ -1,5 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
-import { getSecureStorageMode, getSecureStoreOptionsForMode } from '@/app/security/secureStorage';
+import SettingsStorage from 'expo-settings-storage';
 
 import { generateIdentityKeypair } from './crypto';
 import { decodeBase64 } from './encoding';
@@ -53,14 +52,12 @@ function assertStoredIdentityKeypair(candidate: unknown): asserts candidate is S
 export function createExpoSecureStoreAdapter(): SecureStoreAdapter {
   return {
     async getItem(key: string) {
-      const mode = key === DEFAULT_IDENTITY_KEYPAIR_STORAGE_KEY ? await getSecureStorageMode() : undefined;
-
       try {
-        return await SecureStore.getItemAsync(key, mode ? getSecureStoreOptionsForMode(mode) : undefined);
+        return await SettingsStorage.getItem(key);
       } catch (error) {
         const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
         if (message.includes('invalidated')) {
-          await SecureStore.deleteItemAsync(key);
+          await SettingsStorage.deleteItem(key);
           throw new Error(KEY_STORAGE_INVALIDATED_ERROR_MESSAGE);
         }
 
@@ -68,11 +65,10 @@ export function createExpoSecureStoreAdapter(): SecureStoreAdapter {
       }
     },
     async setItem(key: string, value: string) {
-      const mode = key === DEFAULT_IDENTITY_KEYPAIR_STORAGE_KEY ? await getSecureStorageMode() : undefined;
-      await SecureStore.setItemAsync(key, value, mode ? getSecureStoreOptionsForMode(mode) : undefined);
+      await SettingsStorage.setItem(key, value);
     },
     async deleteItem(key: string) {
-      await SecureStore.deleteItemAsync(key);
+      await SettingsStorage.deleteItem(key);
     },
   };
 }

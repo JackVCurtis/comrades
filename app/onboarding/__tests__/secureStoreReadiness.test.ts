@@ -1,17 +1,11 @@
-import * as SecureStore from 'expo-secure-store';
-
 import { probeSecureStoreReadiness } from '@/app/onboarding/secureStoreReadiness';
-import { getSecureStorageCapabilities } from '@/app/security/secureStorageCapabilities';
 import { setSecureStorageMode } from '@/app/security/secureStorage';
+import SettingsStorage from 'expo-settings-storage';
 
-jest.mock('expo-secure-store', () => ({
-  setItemAsync: jest.fn(),
-  getItemAsync: jest.fn(),
-  deleteItemAsync: jest.fn(),
-}));
-
-jest.mock('@/app/security/secureStorageCapabilities', () => ({
-  getSecureStorageCapabilities: jest.fn(),
+jest.mock('expo-settings-storage', () => ({
+  setItem: jest.fn(),
+  getItem: jest.fn(),
+  deleteItem: jest.fn(),
 }));
 
 jest.mock('@/app/security/secureStorage', () => ({
@@ -19,37 +13,21 @@ jest.mock('@/app/security/secureStorage', () => ({
 }));
 
 describe('probeSecureStoreReadiness', () => {
-  const mockCapabilities = jest.mocked(getSecureStorageCapabilities);
   const mockSetStorageMode = jest.mocked(setSecureStorageMode);
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(SecureStore.setItemAsync).mockResolvedValue(undefined);
-    jest.mocked(SecureStore.getItemAsync).mockResolvedValue('ok');
-    jest.mocked(SecureStore.deleteItemAsync).mockResolvedValue(undefined);
+    jest.mocked(SettingsStorage.setItem).mockResolvedValue(undefined);
+    jest.mocked(SettingsStorage.getItem).mockResolvedValue('ok');
+    jest.mocked(SettingsStorage.deleteItem).mockResolvedValue(undefined);
   });
 
   it('uses authenticated secure-store mode when Android supports biometric auth', async () => {
-    mockCapabilities.mockResolvedValueOnce({
-      platform: 'android',
-      secureStoreAvailable: true,
-      canUseBiometricAuthentication: true,
-      recommendedMode: 'authenticated-secure-store',
-    });
-
     await expect(probeSecureStoreReadiness()).resolves.toEqual({ status: 'granted' });
     expect(mockSetStorageMode).toHaveBeenCalledWith('authenticated-secure-store');
   });
 
   it('returns granted with fallback guidance when authenticated Android storage is unavailable', async () => {
-    mockCapabilities.mockResolvedValueOnce({
-      platform: 'android',
-      secureStoreAvailable: true,
-      canUseBiometricAuthentication: false,
-      recommendedMode: 'secure-store-without-auth',
-      reason: 'Secure lock screen or biometric authentication is not configured.',
-    });
-
     await expect(probeSecureStoreReadiness()).resolves.toEqual({
       status: 'granted',
       errorMessage:

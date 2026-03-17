@@ -3,9 +3,9 @@ import { hasCompletedOnboarding, markOnboardingCompleted } from '@/app/onboardin
 const mockGetItemAsync = jest.fn<Promise<string | null>, [string]>();
 const mockSetItemAsync = jest.fn<Promise<void>, [string, string]>();
 
-jest.mock('expo-secure-store', () => ({
-  getItemAsync: (key: string) => mockGetItemAsync(key),
-  setItemAsync: (key: string, value: string) => mockSetItemAsync(key, value),
+jest.mock('expo-settings-storage', () => ({
+  getItem: (key: string) => mockGetItemAsync(key),
+  setItem: (key: string, value: string) => mockSetItemAsync(key, value),
 }));
 
 describe('onboardingState', () => {
