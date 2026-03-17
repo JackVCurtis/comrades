@@ -1,5 +1,11 @@
 package expo.modules.settingsstorage
 
+import android.app.Activity
+import android.app.KeyguardManager
+import android.content.Context
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -10,44 +16,112 @@ class DeviceAuthHelper(
   private val onSuccess: () -> Unit,
   private val onError: (String) -> Unit
 ) {
-  private val executor = ContextCompat.getMainExecutor(activity)
+  companion object {
+    const val REQUEST_CODE_CONFIRM_DEVICE_CREDENTIAL = 9417
 
-  private val prompt by lazy {
-    BiometricPrompt(
-      activity,
-      executor,
-      object : BiometricPrompt.AuthenticationCallback() {
-        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-          onSuccess()
-        }
+    // Match this to the keystore key auth policy.
+    val ALLOWED_AUTHENTICATORS =
+      BiometricManager.Authenticators.BIOMETRIC_STRONG or
+      BiometricManager.Authenticators.DEVICE_CREDENTIAL
+  }
 
-        override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-          onError(errString.toString())
-        }
+  private val biometricManager = BiometricManager.from(activity)
+  private val mainHandler = Handler(Looper.getMainLooper())
 
-        override fun onAuthenticationFailed() {
-          // non-terminal, do nothing
-        }
-      }
-    )
+  private fun keyguardManager(): KeyguardManager {
+    return activity.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+  }
+
+  private fun isDeviceSecure(): Boolean {
+    return keyguardManager().isDeviceSecure
+  }
+
+  fun canAuthenticate(): Boolean {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      biometricManager.canAuthenticate(ALLOWED_AUTHENTICATORS) ==
+        BiometricManager.BIOMETRIC_SUCCESS
+    } else {
+      // On Android 10 and lower, DEVICE_CREDENTIAL combinations are not supported
+      // through setAllowedAuthenticators(); use biometric availability OR secure lock screen.
+      biometricManager.canAuthenticate() == BiometricManager.BIOMETRIC_SUCCESS ||
+        isDeviceSecure()
+    }
   }
 
   fun authenticate(force: Boolean = true): Boolean {
-    val authenticators =
-      BiometricManager.Authenticators.BIOMETRIC_STRONG or
-        BiometricManager.Authenticators.DEVICE_CREDENTIAL
+    if (!canAuthenticate()) {
+      onError("Device authentication unavailable")
+      return false
+    }
 
-    val promptInfo = BiometricPrompt.PromptInfo.Builder()
-      .setTitle("Unlock secure settings")
-      .setSubtitle("Authenticate to access protected settings")
-      .setAllowedAuthenticators(authenticators)
-      .build()
+    if (!force) return true
 
-    prompt.authenticate(promptInfo)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      mainHandler.post {
+        try {
+          val executor = ContextCompat.getMainExecutor(activity)
+          val biometricPrompt = BiometricPrompt(
+            activity,
+            executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+              override fun onAuthenticationSucceeded(
+                result: BiometricPrompt.AuthenticationResult
+              ) {
+                onSuccess()
+              }
+
+              override fun onAuthenticationError(
+                errorCode: Int,
+                errString: CharSequence
+              ) {
+                onError(errString.toString())
+              }
+
+              override fun onAuthenticationFailed() {
+                // Non-terminal failure; system keeps prompt open.
+              }
+            }
+          )
+
+          val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Unlock secure settings")
+            .setSubtitle("Use biometrics or screen lock")
+            .setAllowedAuthenticators(ALLOWED_AUTHENTICATORS)
+            .build()
+
+          biometricPrompt.authenticate(promptInfo)
+        } catch (e: Exception) {
+          onError("Failed to start biometric authentication: ${e.message}")
+        }
+      }
+      return true
+    }
+
+    // Android 10 and lower fallback: confirm device credential directly.
+    val intent = keyguardManager().createConfirmDeviceCredentialIntent(
+      "Unlock secure settings",
+      ""
+    )
+    if (intent == null) {
+      onError("Device credential prompt unavailable")
+      return false
+    }
+
+    activity.runOnUiThread {
+      @Suppress("DEPRECATION")
+      activity.startActivityForResult(intent, REQUEST_CODE_CONFIRM_DEVICE_CREDENTIAL)
+    }
     return true
   }
 
   fun onActivityResult(requestCode: Int, resultCode: Int): Boolean {
-    return false
+    if (requestCode != REQUEST_CODE_CONFIRM_DEVICE_CREDENTIAL) return false
+
+    if (resultCode == Activity.RESULT_OK) {
+      onSuccess()
+    } else {
+      onError("Authentication cancelled")
+    }
+    return true
   }
 }
