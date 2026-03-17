@@ -1,6 +1,6 @@
 # Validation Results
 
-PGT validation now returns a canonical, auditable `ValidationResult` object for every validation entry point.
+Peer Tree validation now returns a canonical, auditable `ValidationResult` object for every validation entry point.
 
 ## Canonical status values
 

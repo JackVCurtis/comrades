@@ -1,8 +1,8 @@
-# PGT Architecture Guide
+# Peer Tree Architecture Guide
 
 ## Overview
 
-Pretty Good Trust (PGT) is a decentralized system for exchanging identity information and trust relationships using proximity interactions.
+Peer Tree is a decentralized protocol for exchanging identity information and trust relationships using proximity interactions.
 
 The system combines:
 
@@ -19,7 +19,7 @@ Instead of maintaining a mutable table such as:
 uuid → public_key
 ```
 
-PGT stores **signed records** and derives local identity belief from the full record history.
+Peer Tree stores **signed records** and derives local identity belief from the full record history.
 
 ---
 
@@ -80,7 +80,7 @@ A self-signed binding proves **key possession**, not real-world identity truth.
 
 # 2. Trust Layer
 
-Because first-contact trust is inherently uncertain, PGT uses explicit **endorsement records**.
+Because first-contact trust is inherently uncertain, Peer Tree uses explicit **endorsement records**.
 
 ### Endorsements
 
@@ -215,7 +215,7 @@ Handshakes do not determine identity truth.
 
 # Transport Architecture
 
-PGT separates **bootstrap** from **synchronization**.
+Peer Tree separates **bootstrap** from **synchronization**.
 
 ```
 NFC → bootstrap
@@ -311,7 +311,7 @@ resolve via trust policy
 
 # Key Rotation
 
-PGT supports legitimate key changes.
+Peer Tree supports legitimate key changes.
 
 ```
 KeyRotationRecord {
@@ -412,7 +412,7 @@ Building correctness before transport complexity reduces implementation risk.
 
 # Summary
 
-PGT should be understood as:
+Peer Tree should be understood as:
 
 ```
 a proximity-bootstrapped,
