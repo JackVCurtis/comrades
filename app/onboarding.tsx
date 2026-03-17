@@ -3,6 +3,8 @@ import { Button, StyleSheet, Text, View } from 'react-native';
 
 import { markOnboardingCompleted } from '@/app/onboarding/onboardingState';
 import { type OnboardingPermissionStepKey, useOnboardingPermissions } from '@/app/onboarding/useOnboardingPermissions';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const STATUS_LABELS = {
   idle: 'Idle',
@@ -83,6 +85,8 @@ function buildTimeline(steps: Record<OnboardingPermissionStepKey, { status: keyo
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const colorScheme = useColorScheme() ?? 'light';
+  const palette = Colors[colorScheme];
   const { orderedSteps, grantedCount, totalCount, isReady, retryStep, steps, terminalState } = useOnboardingPermissions();
   const timeline = buildTimeline(steps);
 
@@ -108,20 +112,20 @@ export default function OnboardingScreen() {
           : undefined;
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome to Comrades</Text>
-      <Text style={styles.body}>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
+      <Text style={[styles.title, { color: palette.text }]}>Welcome to Comrades</Text>
+      <Text style={[styles.body, { color: palette.textMuted }]}>
         Confirm required permissions and secure key initialization before starting handshake flows.
       </Text>
-      <Text style={styles.progress}>Permissions ready: {grantedCount}/{totalCount}</Text>
-      <Text style={styles.progress}>Security status: {terminalState}</Text>
-      {!isReady ? <Text style={styles.errorText}>Skip is unavailable because this is a hard security requirement.</Text> : null}
+      <Text style={[styles.progress, { color: palette.text }]}>Permissions ready: {grantedCount}/{totalCount}</Text>
+      <Text style={[styles.progress, { color: palette.text }]}>Security status: {terminalState}</Text>
+      {!isReady ? <Text style={[styles.errorText, { color: palette.danger }]}>Skip is unavailable because this is a hard security requirement.</Text> : null}
 
       {secureStorageGuidance ? (
-        <View style={styles.checklistRow}>
-          <Text style={styles.stepTitle}>Android secure storage readiness</Text>
-          <Text style={styles.body}>{secureStorageGuidance}</Text>
-          <Text style={styles.body}>
+        <View style={[styles.checklistRow, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+          <Text style={[styles.stepTitle, { color: palette.text }]}>Android secure storage readiness</Text>
+          <Text style={[styles.body, { color: palette.textMuted }]}>{secureStorageGuidance}</Text>
+          <Text style={[styles.body, { color: palette.textMuted }]}>
             This feature uses your device&apos;s secure lock screen / biometrics to protect sensitive data.
           </Text>
         </View>
@@ -129,15 +133,15 @@ export default function OnboardingScreen() {
 
       <View style={styles.checklist}>
         {timeline.map((entry) => (
-          <Text key={entry.key} style={styles.stepTitle}>{entry.label}: {timelineLabel(entry.status)}</Text>
+          <Text key={entry.key} style={[styles.stepTitle, { color: palette.text }]}>{entry.label}: {timelineLabel(entry.status)}</Text>
         ))}
       </View>
 
       <View style={styles.checklist}>
         {orderedSteps.map((step) => (
-          <View key={step.key} style={styles.checklistRow}>
-            <Text style={styles.stepTitle}>{step.label}: {STATUS_LABELS[step.status]}</Text>
-            {step.errorMessage ? <Text style={styles.errorText}>{step.errorMessage}</Text> : null}
+          <View key={step.key} style={[styles.checklistRow, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+            <Text style={[styles.stepTitle, { color: palette.text }]}>{step.label}: {STATUS_LABELS[step.status]}</Text>
+            {step.errorMessage ? <Text style={[styles.errorText, { color: palette.danger }]}>{step.errorMessage}</Text> : null}
             {(step.status === 'denied' || step.status === 'blocked') && step.key !== 'initializing_keys' ? (
               <Button title={`Retry ${step.label}`} onPress={() => void retryStep(step.key)} />
             ) : null}
@@ -188,6 +192,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   errorText: {
-    color: '#7f1d1d',
+    textAlign: 'center',
   },
 });
