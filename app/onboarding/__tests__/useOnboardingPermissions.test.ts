@@ -34,15 +34,21 @@ describe('useOnboardingPermissions', () => {
             return { status: 'granted' };
           }),
         },
+        identity: {
+          initializeKeypair: jest.fn(async () => {
+            callOrder.push('initializing_keys');
+            return { status: 'granted' };
+          }),
+        },
       })
     );
 
     await waitFor(() => {
-      expect(result.current.grantedCount).toBe(3);
+      expect(result.current.grantedCount).toBe(4);
     });
 
-    expect(callOrder).toEqual(['camera', 'bluetooth', 'secureStore']);
-    expect(result.current.totalCount).toBe(3);
+    expect(callOrder).toEqual(['camera', 'bluetooth', 'secureStore', 'initializing_keys']);
+    expect(result.current.totalCount).toBe(4);
     expect(result.current.isReady).toBe(true);
   });
 
@@ -63,6 +69,9 @@ describe('useOnboardingPermissions', () => {
         },
         secureStore: {
           checkReadiness: jest.fn(async () => ({ status: 'granted' })),
+        },
+        identity: {
+          initializeKeypair: jest.fn(async () => ({ status: 'granted' })),
         },
       })
     );
@@ -96,6 +105,9 @@ describe('useOnboardingPermissions', () => {
         secureStore: {
           checkReadiness: jest.fn(async () => ({ status: 'granted' })),
         },
+        identity: {
+          initializeKeypair: jest.fn(async () => ({ status: 'granted' })),
+        },
       })
     );
 
@@ -104,6 +116,47 @@ describe('useOnboardingPermissions', () => {
     });
 
     expect(result.current.steps.bluetooth.errorMessage).toBe('Bluetooth permission denied by the OS.');
-    expect(result.current.grantedCount).toBe(2);
+    expect(result.current.steps.initializing_keys.status).toBe('idle');
+    expect(result.current.grantedCount).toBe(1);
+  });
+
+  it('maps identity initialization failures and allows retrying initialization', async () => {
+    const initializeKeypair = jest
+      .fn()
+      .mockResolvedValueOnce({
+        status: 'blocked',
+        errorMessage: 'Secure key storage is unavailable on this device.',
+      })
+      .mockResolvedValueOnce({ status: 'granted' });
+
+    const { result } = renderHook(() =>
+      useOnboardingPermissions({
+        camera: {
+          currentPermission: createCameraResult(true, true),
+          requestPermission: jest.fn(async () => createCameraResult(true, true)),
+        },
+        bluetooth: {
+          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
+        },
+        secureStore: {
+          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
+        },
+        identity: {
+          initializeKeypair,
+        },
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.steps.initializing_keys.status).toBe('blocked');
+    });
+
+    expect(result.current.steps.initializing_keys.errorMessage).toBe('Secure key storage is unavailable on this device.');
+
+    await act(async () => {
+      await result.current.retryStep('initializing_keys');
+    });
+
+    expect(result.current.steps.initializing_keys.status).toBe('granted');
   });
 });
