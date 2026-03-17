@@ -1,5 +1,5 @@
 /**
- * Shared color and typography tokens for Easy PGT.
+ * Shared color and typography tokens for Comrades.
  */
 import { Platform } from 'react-native';
 

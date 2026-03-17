@@ -1,6 +1,6 @@
 # Deterministic Merkle Log
 
-This document defines the deterministic append-only Merkle log used for durable protocol records in PGT.
+This document defines the deterministic append-only Merkle log used for durable protocol records in Peer Tree.
 
 ## Dependencies and protocol alignment
 
@@ -12,7 +12,7 @@ The Merkle log depends on existing protocol invariants:
 
 ## Hash domains and leaf derivation
 
-PGT uses domain-separated SHA-256 for log inputs:
+Peer Tree uses domain-separated SHA-256 for log inputs:
 
 - `record_hash = SHA256("record_hash_v1" || canonical_record_bytes)`
 - `leaf_hash = SHA256("merkle_leaf_v1" || record_hash)`

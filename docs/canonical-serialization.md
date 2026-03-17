@@ -1,6 +1,6 @@
 # Canonical Serialization Specification (`canonical_bytes`)
 
-This document defines deterministic serialization rules for `canonical_bytes` used by PGT records before hashing, signing, signature verification, and Merkle inclusion.
+This document defines deterministic serialization rules for `canonical_bytes` used by Peer Tree records before hashing, signing, signature verification, and Merkle inclusion.
 
 The goal is to ensure that identical logical objects always produce identical byte sequences across platforms, languages, and runtimes.
 

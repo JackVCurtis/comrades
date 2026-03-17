@@ -1,6 +1,6 @@
 # Hash Domain Separation for Canonical Records
 
-PGT uses domain-separated SHA-256 helpers to prevent collisions between cryptographic contexts.
+Peer Tree uses domain-separated SHA-256 helpers to prevent collisions between cryptographic contexts.
 
 ## Record hash domain
 

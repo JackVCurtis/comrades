@@ -1,8 +1,8 @@
-# Pretty Good Trust (PGT)
+# Peer Tree
 
-Pretty Good Trust (PGT) is a mobile system for exchanging and verifying identity claims using a **proximity-bootstrapped, Merkle-synchronized trust log**.
+Peer Tree is a mobile protocol for exchanging and verifying identity claims using a **proximity-bootstrapped, Merkle-synchronized trust log**.
 
-PGT allows users to establish identity relationships in person and share those relationships across a decentralized network of devices.
+Comrades allows users to establish identity relationships in person and share those relationships across a decentralized network of devices using the Peer Tree protocol.
 
 The system records identity claims, endorsements, and encounters as **signed records** stored in an **append-only Merkle log**. Devices synchronize these logs directly with nearby peers.
 
@@ -13,7 +13,7 @@ The design emphasizes:
 * verifiable append-only history
 * efficient peer-to-peer synchronization
 
-PGT should be thought of as:
+Peer Tree should be thought of as:
 
 > a proximity-bootstrapped, BLE-synchronized, append-only trust log with local identity resolution.
 
@@ -21,7 +21,7 @@ PGT should be thought of as:
 
 # Cryptographic Model
 
-PGT uses **modern, deterministic cryptographic primitives implemented in JavaScript** using **TweetNaCl**.
+Peer Tree uses **modern, deterministic cryptographic primitives implemented in JavaScript** using **TweetNaCl**.
 
 Cryptographic operations rely on:
 
@@ -114,7 +114,7 @@ The Merkle structure provides:
 
 # Transport Model
 
-PGT uses two local communication technologies.
+Peer Tree uses two local communication technologies.
 
 ---
 
@@ -169,7 +169,7 @@ Recommended reading order:
 
 # Design Principles
 
-PGT follows several architectural rules:
+Peer Tree follows several architectural rules:
 
 * UUID is an identifier, not an identity proof.
 * Identity bindings must be self-signed.
@@ -195,7 +195,7 @@ iOS support remains planned; this slice uses camera-based QR bootstrap and BLE s
 
 # Cryptographic Implementation
 
-PGT uses a **pure JavaScript crypto stack** compatible with Expo.
+Peer Tree uses a **pure JavaScript crypto stack** compatible with Expo.
 
 | Component                   | Library          |
 | --------------------------- | ---------------- |

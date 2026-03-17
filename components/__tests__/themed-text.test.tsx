@@ -4,8 +4,8 @@ import { ThemedText } from '@/components/themed-text';
 
 describe('ThemedText', () => {
   it('renders children content', () => {
-    const { getByText } = render(<ThemedText>Easy PGT</ThemedText>);
+    const { getByText } = render(<ThemedText>Comrades</ThemedText>);
 
-    expect(getByText('Easy PGT')).toBeTruthy();
+    expect(getByText('Comrades')).toBeTruthy();
   });
 });
