@@ -18,6 +18,7 @@ export interface ProximityBlePort {
   stopAdvertising(): Promise<void>;
   scanForService(serviceUuid: string, timeoutMs: number): Promise<ProximityBleDevice | null>;
   connect(deviceId: string): Promise<ProximityBleDevice>;
+  exchangeContactInfo(contactInfo: string, serviceUuid: string, sessionUuid: string): Promise<string>;
   disconnect(deviceId?: string): Promise<void>;
   cleanup(): Promise<void>;
 }

@@ -10,7 +10,7 @@ import { useProximityBootstrap } from '@/app/features/proximity/useProximityBoot
 import { addHandshakeCounterparty } from '@/app/handshake/connection-store';
 import { HandshakeSuccessModal } from '@/app/features/handshake/components/HandshakeSuccessModal';
 import { HandshakeErrorModal } from '@/app/features/handshake/components/HandshakeErrorModal';
-import { buildExchangedPayloadForRole, type ExchangedPayloadResult } from '@/app/features/handshake/handshakePayloads';
+import { buildExchangedPayloadForRole, parseContactPayload, type ExchangedPayloadResult } from '@/app/features/handshake/handshakePayloads';
 
 const IDENTITY_BINDING_HASH = '7f4f2f2a6a63c8bd4f07bd55f0a4a8a3e274eb45857ec5b5ef5ec66c700cf6ad';
 
@@ -64,6 +64,7 @@ export function HandshakeContainer() {
     ingestScannedBootstrap,
     handleCameraPermissionDenied,
     startBleDiscoveryConnect,
+    exchangeContactInfoOverBle,
     reset,
   } = useProximityBootstrap();
 
@@ -80,16 +81,43 @@ export function HandshakeContainer() {
       return;
     }
 
-    const localRole = mode === 'offer' ? 'offerer' : 'accepter';
-    const exchangedPayload = buildExchangedPayloadForRole(localRole);
+    let cancelled = false;
 
-    addHandshakeCounterparty({
-      localSharedName: exchangedPayload.localSharedPayload.displayName,
-      providedName: exchangedPayload.remoteReceivedPayload.displayName,
-      contactInfo: exchangedPayload.remoteReceivedPayload.email,
-    });
-    setExchangedPayloadResult(exchangedPayload);
-  }, [state.status, mode, exchangedPayloadResult]);
+    const exchangeContactPayloadOverBle = async () => {
+      try {
+        const localRole = mode === 'offer' ? 'offerer' : 'accepter';
+        const localPayload = buildExchangedPayloadForRole(localRole).localSharedPayload;
+        const receivedRawPayload = await exchangeContactInfoOverBle(JSON.stringify(localPayload));
+        const remotePayload = parseContactPayload(receivedRawPayload);
+
+        if (cancelled || !remotePayload) {
+          return;
+        }
+
+        const exchangedPayload: ExchangedPayloadResult = {
+          localSharedPayload: localPayload,
+          remoteReceivedPayload: remotePayload,
+        };
+
+        addHandshakeCounterparty({
+          localSharedName: exchangedPayload.localSharedPayload.displayName,
+          providedName: exchangedPayload.remoteReceivedPayload.displayName,
+          contactInfo: exchangedPayload.remoteReceivedPayload.email,
+        });
+        setExchangedPayloadResult(exchangedPayload);
+      } catch {
+        if (!cancelled) {
+          setExchangedPayloadResult(null);
+        }
+      }
+    };
+
+    void exchangeContactPayloadOverBle();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [state.status, mode, exchangedPayloadResult, exchangeContactInfoOverBle]);
 
   const beginOffer = async () => {
     setMode('offer');

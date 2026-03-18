@@ -1,4 +1,5 @@
 import type { ProximityBleDevice, ProximityBlePort } from './types';
+import { decodeBase64, encodeBase64 } from '@/app/protocol/transport';
 
 interface SubscriptionLike {
   remove(): void;
@@ -10,6 +11,15 @@ interface DeviceLike {
   serviceUUIDs?: string[] | null;
   overflowServiceUUIDs?: string[] | null;
   discoverAllServicesAndCharacteristics(): Promise<unknown>;
+  writeCharacteristicWithResponseForService?(
+    serviceUuid: string,
+    characteristicUuid: string,
+    valueBase64: string
+  ): Promise<unknown>;
+  readCharacteristicForService?(
+    serviceUuid: string,
+    characteristicUuid: string
+  ): Promise<{ value?: string | null }>;
 }
 
 type BleState = 'PoweredOn' | string;
@@ -60,6 +70,18 @@ function toProximityBleDevice(device: DeviceLike): ProximityBleDevice {
     id: device.id,
     name: device.name,
   };
+}
+
+const CONTACT_INFO_CHARACTERISTIC_UUID = '1f58fbb8-70f0-4df5-9a9e-c6d85ba6f0a3';
+const CONTACT_INFO_READ_TIMEOUT_MS = 10_000;
+const CONTACT_INFO_READ_INTERVAL_MS = 300;
+
+function encodeUtf8Base64(value: string): string {
+  return encodeBase64(new TextEncoder().encode(value));
+}
+
+function decodeUtf8Base64(value: string): string {
+  return new TextDecoder().decode(decodeBase64(value));
 }
 
 
@@ -137,6 +159,9 @@ export function createBleAdapter(manager: BleManagerLike | null = createBleManag
       async connect() {
         throw new Error('BLE_UNAVAILABLE_OR_DISABLED');
       },
+      async exchangeContactInfo() {
+        throw new Error('BLE_UNAVAILABLE_OR_DISABLED');
+      },
       async disconnect() {
         return;
       },
@@ -147,6 +172,7 @@ export function createBleAdapter(manager: BleManagerLike | null = createBleManag
   }
 
   let connectedDeviceId: string | undefined;
+  let connectedDevice: DeviceLike | undefined;
   let stateSubscription: SubscriptionLike | null = null;
 
   const ensurePoweredOn = async () => {
@@ -213,8 +239,51 @@ export function createBleAdapter(manager: BleManagerLike | null = createBleManag
       await ensurePoweredOn();
       const device = await manager.connectToDevice(deviceId);
       await device.discoverAllServicesAndCharacteristics();
+      connectedDevice = device;
       connectedDeviceId = device.id;
       return toProximityBleDevice(device);
+    },
+    async exchangeContactInfo(contactInfo, serviceUuid, sessionUuid) {
+      if (!connectedDevice) {
+        throw new Error('BLE_NOT_CONNECTED');
+      }
+
+      if (!connectedDevice.writeCharacteristicWithResponseForService || !connectedDevice.readCharacteristicForService) {
+        throw new Error('BLE_CONTACT_EXCHANGE_UNSUPPORTED');
+      }
+
+      const outboundPayload = JSON.stringify({
+        session_uuid: sessionUuid,
+        contact_info: contactInfo,
+      });
+
+      await connectedDevice.writeCharacteristicWithResponseForService(
+        serviceUuid,
+        CONTACT_INFO_CHARACTERISTIC_UUID,
+        encodeUtf8Base64(outboundPayload)
+      );
+
+      const startedAt = Date.now();
+      while (Date.now() - startedAt < CONTACT_INFO_READ_TIMEOUT_MS) {
+        const result = await connectedDevice.readCharacteristicForService(serviceUuid, CONTACT_INFO_CHARACTERISTIC_UUID);
+        if (!result.value) {
+          await new Promise((resolve) => setTimeout(resolve, CONTACT_INFO_READ_INTERVAL_MS));
+          continue;
+        }
+
+        try {
+          const parsed = JSON.parse(decodeUtf8Base64(result.value)) as { session_uuid?: string; contact_info?: string };
+          if (parsed.session_uuid === sessionUuid && typeof parsed.contact_info === 'string' && parsed.contact_info.trim().length > 0) {
+            return parsed.contact_info;
+          }
+        } catch {
+          // ignore malformed characteristic value while polling until timeout
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, CONTACT_INFO_READ_INTERVAL_MS));
+      }
+
+      throw new Error('BLE_CONTACT_EXCHANGE_TIMEOUT');
     },
     async disconnect(deviceId) {
       const targetDevice = deviceId ?? connectedDeviceId;
@@ -222,6 +291,7 @@ export function createBleAdapter(manager: BleManagerLike | null = createBleManag
         await manager.cancelDeviceConnection(targetDevice);
       }
       connectedDeviceId = undefined;
+      connectedDevice = undefined;
     },
     async cleanup() {
       manager.stopDeviceScan();
@@ -231,6 +301,7 @@ export function createBleAdapter(manager: BleManagerLike | null = createBleManag
         await manager.cancelDeviceConnection(connectedDeviceId);
         connectedDeviceId = undefined;
       }
+      connectedDevice = undefined;
       manager.destroy();
     },
   };

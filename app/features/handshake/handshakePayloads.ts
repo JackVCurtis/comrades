@@ -39,3 +39,26 @@ export function buildExchangedPayloadForRole(role: HandshakeLocalRole): Exchange
     remoteReceivedPayload: OFFERER_MOCK_CONTACT_PAYLOAD,
   };
 }
+
+export function parseContactPayload(rawPayload: string): MockContactPayload | null {
+  try {
+    const parsed = JSON.parse(rawPayload) as Partial<MockContactPayload>;
+    if (
+      typeof parsed.displayName !== 'string' ||
+      typeof parsed.handle !== 'string' ||
+      typeof parsed.phone !== 'string' ||
+      typeof parsed.email !== 'string'
+    ) {
+      return null;
+    }
+
+    return {
+      displayName: parsed.displayName,
+      handle: parsed.handle,
+      phone: parsed.phone,
+      email: parsed.email,
+    };
+  } catch {
+    return null;
+  }
+}
