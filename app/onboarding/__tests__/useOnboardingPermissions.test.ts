@@ -98,7 +98,7 @@ describe('useOnboardingPermissions', () => {
       expect(unavailableResult.result.current.steps.bluetooth.status).toBe('blocked');
     });
 
-    expect(unavailableResult.result.current.steps.bluetooth.errorMessage).toContain('Bluetooth access is required');
+    expect(unavailableResult.result.current.steps.bluetooth.errorMessage).toBe('Bluetooth is unavailable on this device.');
     expect(unavailableResult.result.current.terminalState).toBe('blocked_by_permissions');
 
     const disabledResult = renderHook(() =>
@@ -123,7 +123,7 @@ describe('useOnboardingPermissions', () => {
       expect(disabledResult.result.current.steps.bluetooth.status).toBe('blocked');
     });
 
-    expect(disabledResult.result.current.steps.bluetooth.errorMessage).toContain('Bluetooth access is required');
+    expect(disabledResult.result.current.steps.bluetooth.errorMessage).toBe('Bluetooth is turned off. Enable Bluetooth and retry.');
     expect(disabledResult.result.current.terminalState).toBe('blocked_by_permissions');
   });
 
@@ -156,7 +156,7 @@ describe('useOnboardingPermissions', () => {
     });
 
     expect(result.current.terminalState).toBe('blocked_by_permissions');
-    expect(result.current.steps.secureStore.errorMessage).toContain('Secure storage access is required');
+    expect(result.current.steps.secureStore.errorMessage).toBe('Secure key storage probe failed. Please retry.');
 
     await act(async () => {
       await result.current.retryStep('secureStore');
