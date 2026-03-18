@@ -78,7 +78,7 @@ function buildTimeline(steps: Record<OnboardingPermissionStepKey, { status: keyo
     {
       key: 'verify_stored_keypair',
       label: 'Verifying encryption key access',
-      status: toTimelineStatus(steps.initializing_keys.status),
+      status: toTimelineStatus(steps.verifying_keys.status),
     },
   ];
 }
@@ -100,6 +100,7 @@ export default function OnboardingScreen() {
   };
 
   const initializationStep = steps.initializing_keys;
+  const verificationStep = steps.verifying_keys;
   const secureStoreStep = steps.secureStore;
 
   const isAndroid = Platform.OS === 'android';
@@ -152,15 +153,18 @@ export default function OnboardingScreen() {
             {step.key === 'secureStore' && iosSecureStorageGuidance ? (
               <Text style={[styles.errorText, { color: palette.danger }]}>{iosSecureStorageGuidance}</Text>
             ) : null}
-            {(step.status === 'denied' || step.status === 'blocked') && step.key !== 'initializing_keys' ? (
+            {(step.status === 'denied' || step.status === 'blocked') && step.key !== 'initializing_keys' && step.key !== 'verifying_keys' ? (
               <Button title={`Retry ${step.label}`} onPress={() => void retryStep(step.key)} />
             ) : null}
           </View>
         ))}
       </View>
 
-      {(initializationStep.status === 'denied' || initializationStep.status === 'blocked') ? (
-        <Button title="Retry initialization" onPress={() => void retryStep('initializing_keys')} />
+      {(initializationStep.status === 'denied' || initializationStep.status === 'blocked' || verificationStep.status === 'denied' || verificationStep.status === 'blocked') ? (
+        <Button
+          title="Retry key setup"
+          onPress={() => void retryStep(initializationStep.status === 'denied' || initializationStep.status === 'blocked' ? 'initializing_keys' : 'verifying_keys')}
+        />
       ) : null}
 
       <Button onPress={() => void handleContinue()} title="Continue" disabled={!isReady} />

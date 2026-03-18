@@ -58,16 +58,20 @@ describe('useOnboardingPermissions', () => {
             callOrder.push('initializing_keys');
             return { status: 'granted' as const };
           }),
+          verifyKeypair: jest.fn(async () => {
+            callOrder.push('verifying_keys');
+            return { status: 'granted' as const };
+          }),
         },
       })
     );
 
     await waitFor(() => {
-      expect(result.current.grantedCount).toBe(4);
+      expect(result.current.grantedCount).toBe(5);
     });
 
-    expect(callOrder).toEqual(['camera', 'bluetooth', 'secureStore', 'initializing_keys']);
-    expect(result.current.totalCount).toBe(4);
+    expect(callOrder).toEqual(['camera', 'bluetooth', 'secureStore', 'initializing_keys', 'verifying_keys']);
+    expect(result.current.totalCount).toBe(5);
     expect(result.current.isReady).toBe(true);
     expect(result.current.terminalState).toBe('ready_to_continue');
   });
@@ -89,6 +93,7 @@ describe('useOnboardingPermissions', () => {
         },
         identity: {
           initializeKeypair: jest.fn(async () => ({ status: 'granted' as const })),
+          verifyKeypair: jest.fn(async () => ({ status: 'granted' as const })),
         },
       })
     );
@@ -121,6 +126,7 @@ describe('useOnboardingPermissions', () => {
         },
         identity: {
           initializeKeypair: jest.fn(async () => ({ status: 'granted' as const })),
+          verifyKeypair: jest.fn(async () => ({ status: 'granted' as const })),
         },
       })
     );
@@ -149,6 +155,7 @@ describe('useOnboardingPermissions', () => {
         },
         identity: {
           initializeKeypair: jest.fn(async () => ({ status: 'granted' as const })),
+          verifyKeypair: jest.fn(async () => ({ status: 'granted' as const })),
         },
       })
     );
@@ -184,6 +191,7 @@ describe('useOnboardingPermissions', () => {
         },
         identity: {
           initializeKeypair: jest.fn(async () => ({ status: 'granted' })),
+          verifyKeypair: jest.fn(async () => ({ status: 'granted' })),
         },
       })
     );
@@ -195,6 +203,7 @@ describe('useOnboardingPermissions', () => {
     expect(result.current.terminalState).toBe('blocked_by_permissions');
     expect(result.current.steps.secureStore.errorMessage).toContain('Secure storage access is required');
     expect(result.current.steps.initializing_keys.status).toBe('idle');
+    expect(result.current.steps.verifying_keys.status).toBe('idle');
 
     await act(async () => {
       await result.current.retryStep('secureStore');
@@ -202,6 +211,7 @@ describe('useOnboardingPermissions', () => {
 
     expect(result.current.steps.secureStore.status).toBe('granted');
     expect(result.current.steps.initializing_keys.status).toBe('granted');
+    expect(result.current.steps.verifying_keys.status).toBe('granted');
   });
 
   it('continues onboarding with fallback secure-store mode when authenticated storage is unavailable', async () => {
@@ -223,6 +233,7 @@ describe('useOnboardingPermissions', () => {
         },
         identity: {
           initializeKeypair: jest.fn(async () => ({ status: 'granted' })),
+          verifyKeypair: jest.fn(async () => ({ status: 'granted' })),
         },
       })
     );
@@ -252,11 +263,11 @@ describe('useOnboardingPermissions', () => {
     );
 
     await waitFor(() => {
-      expect(result.current.steps.initializing_keys.status).toBe('granted');
+      expect(result.current.steps.verifying_keys.status).toBe('granted');
     });
 
     expect(mockRequestDeviceAuthenticationPrompt).toHaveBeenCalledTimes(1);
-    expect(mockGetOrCreateAppDataEncryptionKey).toHaveBeenCalledTimes(1);
+    expect(mockGetOrCreateAppDataEncryptionKey).toHaveBeenCalledTimes(2);
     expect(result.current.terminalState).toBe('ready_to_continue');
     expect(result.current.isReady).toBe(true);
   });
@@ -323,8 +334,46 @@ describe('useOnboardingPermissions', () => {
     });
 
     expect(result.current.steps.initializing_keys.status).toBe('granted');
+    expect(result.current.steps.verifying_keys.status).toBe('granted');
     expect(result.current.terminalState).toBe('ready_to_continue');
-    expect(mockGetOrCreateAppDataEncryptionKey).toHaveBeenCalledTimes(2);
+    expect(mockGetOrCreateAppDataEncryptionKey).toHaveBeenCalledTimes(3);
+  });
+
+  it('surfaces verification failure and allows retrying the verification phase', async () => {
+    mockGetOrCreateAppDataEncryptionKey
+      .mockResolvedValueOnce('mock-app-data-key')
+      .mockRejectedValueOnce(new Error('Secure storage unavailable'))
+      .mockResolvedValueOnce('mock-app-data-key')
+      .mockResolvedValueOnce('mock-app-data-key');
+
+    const { result } = renderHook(() =>
+      useOnboardingPermissions({
+        camera: {
+          currentPermission: createCameraResult(true, true),
+          requestPermission: jest.fn(async () => createCameraResult(true, true)),
+        },
+        bluetooth: {
+          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
+        },
+        secureStore: {
+          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
+        },
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.steps.verifying_keys.status).toBe('blocked');
+    });
+
+    expect(result.current.steps.initializing_keys.status).toBe('granted');
+    expect(result.current.terminalState).toBe('blocked_by_key_init_failure');
+
+    await act(async () => {
+      await result.current.retryStep('verifying_keys');
+    });
+
+    expect(result.current.steps.verifying_keys.status).toBe('granted');
+    expect(result.current.terminalState).toBe('ready_to_continue');
   });
 
   it('surfaces recovery flow when authenticated secure-store key is invalidated', async () => {
@@ -348,9 +397,11 @@ describe('useOnboardingPermissions', () => {
     );
 
     await waitFor(() => {
-      expect(result.current.steps.initializing_keys.status).toBe('blocked');
+      expect(result.current.terminalState).toBe('blocked_by_key_init_failure');
     });
 
-    expect(result.current.steps.initializing_keys.errorMessage).toContain('no longer readable');
+    const keySetupError =
+      result.current.steps.initializing_keys.errorMessage ?? result.current.steps.verifying_keys.errorMessage;
+    expect(keySetupError).toContain('no longer readable');
   });
 });
