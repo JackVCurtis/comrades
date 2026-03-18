@@ -2,8 +2,8 @@ import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
-import { hasCompletedOnboarding } from '@/app/onboarding/onboardingState';
-import { unlockGate } from '@/app/security/unlockGate';
+import { hasCompletedOnboarding } from '@/modules/onboarding/onboardingState';
+import { unlockGate } from '@/modules/security/unlockGate';
 
 type RouteStatus = 'loading' | 'onboarding' | 'locked' | 'unlocked';
 

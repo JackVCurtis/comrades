@@ -1,14 +1,14 @@
-import { useFocusEffect, router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { getDirectConnections, toCounterpartyView, type CounterpartyView } from '@/app/state/appState';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AppButton } from '@/components/ui/app-button';
 import { AppCard } from '@/components/ui/app-card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { getDirectConnections, toCounterpartyView, type CounterpartyView } from '@/modules/state/appState';
 
 export default function ConnectionsScreen() {
   const [counterparties, setCounterparties] = useState<CounterpartyView[]>(

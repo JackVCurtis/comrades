@@ -1,11 +1,11 @@
-import { ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { ThemedView } from "@/components/themed-view";
 import { AppButton } from "@/components/ui/app-button";
 import { AppCard } from "@/components/ui/app-card";
 import { SectionHeader } from "@/components/ui/section-header";
-import { HandshakeContainer } from "@/app/features/handshake/HandshakeContainer";
+import { HandshakeContainer } from "@/modules/features/handshake/HandshakeContainer";
 
 export default function HandshakeScreen() {
   return (

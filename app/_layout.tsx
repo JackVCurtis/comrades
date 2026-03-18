@@ -5,9 +5,9 @@ import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import 'react-native-reanimated';
 
-import { isUnlockInProgress, unlockGate } from '@/app/security/unlockGate';
-import { persistSecureAppState } from '@/app/state/secureStatePersistence';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { isUnlockInProgress, unlockGate } from '@/modules/security/unlockGate';
+import { persistSecureAppState } from '@/modules/state/secureStatePersistence';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -55,13 +55,8 @@ export default function RootLayout() {
       }
     });
 
-    const blurSubscription = AppState.addEventListener('blur', () => {
-      persistSecureState();
-    });
-
     return () => {
       appStateSubscription.remove();
-      blurSubscription.remove();
     };
   }, [pathname, router]);
 
@@ -70,7 +65,7 @@ export default function RootLayout() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="lock" options={{ headerShown: false, gestureEnabled: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen name='onboarding' options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

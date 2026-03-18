@@ -4,10 +4,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { TRUST_FLOWS } from '@/app/navigation/flows';
-import { getBottomTabBarItemStyle, getBottomTabBarStyle } from '@/app/navigation/tab-bar-style';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { TRUST_FLOWS } from '@/modules/navigation/flows';
+import { getBottomTabBarItemStyle, getBottomTabBarStyle } from '@/modules/navigation/tab-bar-style';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();

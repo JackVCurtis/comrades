@@ -1,18 +1,18 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
-import {
-  getAllConnections,
-  getMessageComposerState,
-  setDraftMessage,
-  setVerificationContext,
-} from '@/app/state/appState';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AppButton } from '@/components/ui/app-button';
 import { AppCard } from '@/components/ui/app-card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import {
+    getAllConnections,
+    getMessageComposerState,
+    setDraftMessage,
+    setVerificationContext,
+} from '@/modules/state/appState';
 
 const SIGNATURE_MARKER = '---SIGNATURE---';
 
