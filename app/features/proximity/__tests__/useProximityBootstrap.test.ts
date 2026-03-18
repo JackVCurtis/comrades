@@ -42,6 +42,7 @@ function createMockBlePort(): jest.Mocked<ProximityBlePort> {
     stopAdvertising: jest.fn(async () => undefined),
     scanForService: jest.fn(async () => ({ id: 'device-1', name: 'device' })),
     connect: jest.fn(async () => ({ id: 'device-1', name: 'device' })),
+    exchangeContactInfo: jest.fn(async (contactInfo: string) => contactInfo),
     disconnect: jest.fn(async () => undefined),
     cleanup: jest.fn(async () => undefined),
   };

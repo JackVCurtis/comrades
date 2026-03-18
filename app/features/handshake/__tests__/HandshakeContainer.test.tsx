@@ -44,6 +44,14 @@ describe('HandshakeContainer', () => {
       ingestScannedBootstrap: jest.fn(),
       handleCameraPermissionDenied: jest.fn(),
       startBleDiscoveryConnect: jest.fn(),
+      exchangeContactInfoOverBle: jest.fn().mockResolvedValue(
+        JSON.stringify({
+          displayName: 'Blair Accept',
+          handle: '@blair.accept',
+          phone: '+1-415-555-0199',
+          email: 'blair.accept@example.com',
+        })
+      ),
       reset,
     }));
 

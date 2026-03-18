@@ -244,6 +244,28 @@ export function useProximityBootstrap(ports: UseProximityBootstrapPorts = {}) {
     }
   };
 
+  const exchangeContactInfoOverBle = async (contactInfo: string): Promise<string> => {
+    const pending = pendingSessionRef.current;
+    if (!pending || !connectedDeviceIdRef.current) {
+      throw new Error('BLE_CONTACT_EXCHANGE_REQUIRES_AUTHENTICATED_SESSION');
+    }
+
+    const trimmedContactInfo = contactInfo.trim();
+    if (!trimmedContactInfo) {
+      throw new Error('BLE_CONTACT_INFO_EMPTY');
+    }
+
+    pushDiagnosticEvent({ source: 'ble', action: 'contact_exchange_start', detail: 'Exchanging contact payload over BLE.' });
+    const receivedContactInfo = await blePort.exchangeContactInfo(
+      trimmedContactInfo,
+      pending.bluetoothServiceUuid,
+      pending.sessionUuid
+    );
+    pushDiagnosticEvent({ source: 'ble', action: 'contact_exchange_complete', detail: 'Received remote contact payload over BLE.' });
+
+    return receivedContactInfo;
+  };
+
   const releaseSessions = useCallback(async () => {
     await blePort.stopAdvertising();
     await blePort.disconnect(connectedDeviceIdRef.current);
@@ -283,6 +305,7 @@ export function useProximityBootstrap(ports: UseProximityBootstrapPorts = {}) {
     ingestScannedBootstrap,
     handleCameraPermissionDenied,
     startBleDiscoveryConnect,
+    exchangeContactInfoOverBle,
     reset,
   };
 }
