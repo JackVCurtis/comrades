@@ -68,12 +68,6 @@ function platformSettingsGuidance(target: 'camera' | 'bluetooth' | 'secure stora
 
   return `Open Settings > Apps > Comrades > Permissions > ${target} and allow access.`;
 }
-
-function normalizeFailureReason(reason: string): string {
-  const [baseReason] = reason.split(':');
-  return baseReason.trim().toUpperCase();
-}
-
 function normalizePermissionErrorMessage(
   key: OnboardingPermissionStepKey,
   result: PermissionCheckResult,
@@ -91,7 +85,9 @@ function normalizePermissionErrorMessage(
     return result.errorMessage;
   }
 
-  const normalizedReason = normalizeFailureReason(`${key}_permission_blocked`);
+  const [baseReason] = result.errorMessage.split(':');
+  const normalizedReason = baseReason.trim().toUpperCase();
+
   return FRIENDLY_FAILURE_COPY[normalizedReason] ?? result.errorMessage;
 }
 
