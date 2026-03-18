@@ -1,19 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { useOnboardingPermissions } from '@/app/onboarding/useOnboardingPermissions';
-import { getOrCreateAppDataEncryptionKey } from '@/app/protocol/crypto/appDataEncryptionKey';
-import { requestDeviceAuthenticationPrompt } from '@/app/security/secureStorageContract';
-
-jest.mock('@/app/protocol/crypto/appDataEncryptionKey', () => ({
-  getOrCreateAppDataEncryptionKey: jest.fn(),
-}));
-
-jest.mock('@/app/security/secureStorageContract', () => ({
-  requestDeviceAuthenticationPrompt: jest.fn(),
-}));
-
-const mockGetOrCreateAppDataEncryptionKey = jest.mocked(getOrCreateAppDataEncryptionKey);
-const mockRequestDeviceAuthenticationPrompt = jest.mocked(requestDeviceAuthenticationPrompt);
 
 function createCameraResult(granted: boolean, canAskAgain = true) {
   return {
@@ -23,12 +10,6 @@ function createCameraResult(granted: boolean, canAskAgain = true) {
 }
 
 describe('useOnboardingPermissions', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockGetOrCreateAppDataEncryptionKey.mockResolvedValue('mock-app-data-key');
-    mockRequestDeviceAuthenticationPrompt.mockResolvedValue({ status: 'success' });
-  });
-
   it('runs camera, bluetooth, and secure store checks in order and reports progress', async () => {
     const callOrder: string[] = [];
 
@@ -53,25 +34,15 @@ describe('useOnboardingPermissions', () => {
             return { status: 'granted' as const };
           }),
         },
-        identity: {
-          initializeKeypair: jest.fn(async () => {
-            callOrder.push('initializing_keys');
-            return { status: 'granted' as const };
-          }),
-          verifyKeypair: jest.fn(async () => {
-            callOrder.push('verifying_keys');
-            return { status: 'granted' as const };
-          }),
-        },
       })
     );
 
     await waitFor(() => {
-      expect(result.current.grantedCount).toBe(5);
+      expect(result.current.grantedCount).toBe(3);
     });
 
-    expect(callOrder).toEqual(['camera', 'bluetooth', 'secureStore', 'initializing_keys', 'verifying_keys']);
-    expect(result.current.totalCount).toBe(5);
+    expect(callOrder).toEqual(['camera', 'bluetooth', 'secureStore']);
+    expect(result.current.totalCount).toBe(3);
     expect(result.current.isReady).toBe(true);
     expect(result.current.terminalState).toBe('ready_to_continue');
   });
@@ -90,10 +61,6 @@ describe('useOnboardingPermissions', () => {
         },
         secureStore: {
           checkReadiness: jest.fn(async () => ({ status: 'granted' as const })),
-        },
-        identity: {
-          initializeKeypair: jest.fn(async () => ({ status: 'granted' as const })),
-          verifyKeypair: jest.fn(async () => ({ status: 'granted' as const })),
         },
       })
     );
@@ -124,10 +91,6 @@ describe('useOnboardingPermissions', () => {
         secureStore: {
           checkReadiness: jest.fn(async () => ({ status: 'granted' as const })),
         },
-        identity: {
-          initializeKeypair: jest.fn(async () => ({ status: 'granted' as const })),
-          verifyKeypair: jest.fn(async () => ({ status: 'granted' as const })),
-        },
       })
     );
 
@@ -152,10 +115,6 @@ describe('useOnboardingPermissions', () => {
         },
         secureStore: {
           checkReadiness: jest.fn(async () => ({ status: 'granted' as const })),
-        },
-        identity: {
-          initializeKeypair: jest.fn(async () => ({ status: 'granted' as const })),
-          verifyKeypair: jest.fn(async () => ({ status: 'granted' as const })),
         },
       })
     );
@@ -189,10 +148,6 @@ describe('useOnboardingPermissions', () => {
         secureStore: {
           checkReadiness,
         },
-        identity: {
-          initializeKeypair: jest.fn(async () => ({ status: 'granted' })),
-          verifyKeypair: jest.fn(async () => ({ status: 'granted' })),
-        },
       })
     );
 
@@ -202,16 +157,12 @@ describe('useOnboardingPermissions', () => {
 
     expect(result.current.terminalState).toBe('blocked_by_permissions');
     expect(result.current.steps.secureStore.errorMessage).toContain('Secure storage access is required');
-    expect(result.current.steps.initializing_keys.status).toBe('idle');
-    expect(result.current.steps.verifying_keys.status).toBe('idle');
 
     await act(async () => {
       await result.current.retryStep('secureStore');
     });
 
     expect(result.current.steps.secureStore.status).toBe('granted');
-    expect(result.current.steps.initializing_keys.status).toBe('granted');
-    expect(result.current.steps.verifying_keys.status).toBe('granted');
   });
 
   it('continues onboarding with fallback secure-store mode when authenticated storage is unavailable', async () => {
@@ -231,10 +182,6 @@ describe('useOnboardingPermissions', () => {
               'Secure lock screen / biometrics are not configured. Continuing with secure storage without OS authentication prompts.',
           })),
         },
-        identity: {
-          initializeKeypair: jest.fn(async () => ({ status: 'granted' })),
-          verifyKeypair: jest.fn(async () => ({ status: 'granted' })),
-        },
       })
     );
 
@@ -244,164 +191,5 @@ describe('useOnboardingPermissions', () => {
 
     expect(result.current.steps.secureStore.status).toBe('granted');
     expect(result.current.steps.secureStore.errorMessage).toContain('secure storage without OS authentication prompts');
-  });
-
-  it('transitions to completed when key initialization succeeds', async () => {
-    const { result } = renderHook(() =>
-      useOnboardingPermissions({
-        camera: {
-          currentPermission: createCameraResult(true, true),
-          requestPermission: jest.fn(async () => createCameraResult(true, true)),
-        },
-        bluetooth: {
-          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
-        },
-        secureStore: {
-          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
-        },
-      })
-    );
-
-    await waitFor(() => {
-      expect(result.current.steps.verifying_keys.status).toBe('granted');
-    });
-
-    expect(mockRequestDeviceAuthenticationPrompt).toHaveBeenCalledTimes(1);
-    expect(mockGetOrCreateAppDataEncryptionKey).toHaveBeenCalledTimes(2);
-    expect(result.current.terminalState).toBe('ready_to_continue');
-    expect(result.current.isReady).toBe(true);
-  });
-
-
-
-  it('surfaces unlock guidance when identity init fails due to authentication state', async () => {
-    mockGetOrCreateAppDataEncryptionKey.mockRejectedValueOnce(new Error('Authentication required: device is locked'));
-
-    const { result } = renderHook(() =>
-      useOnboardingPermissions({
-        camera: {
-          currentPermission: createCameraResult(true, true),
-          requestPermission: jest.fn(async () => createCameraResult(true, true)),
-        },
-        bluetooth: {
-          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
-        },
-        secureStore: {
-          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
-        },
-      })
-    );
-
-    await waitFor(() => {
-      expect(result.current.steps.initializing_keys.status).toBe('denied');
-    });
-
-    expect(result.current.terminalState).toBe('blocked_by_key_init_failure');
-    expect(result.current.steps.initializing_keys.errorMessage).toBe(
-      'Unlock your device and approve secure storage access, then retry.'
-    );
-  });
-
-  it('maps key initialization failure then recovers on retry', async () => {
-    mockGetOrCreateAppDataEncryptionKey
-      .mockRejectedValueOnce(new Error('Secure storage unavailable'))
-      .mockResolvedValueOnce('mock-app-data-key');
-
-    const { result } = renderHook(() =>
-      useOnboardingPermissions({
-        camera: {
-          currentPermission: createCameraResult(true, true),
-          requestPermission: jest.fn(async () => createCameraResult(true, true)),
-        },
-        bluetooth: {
-          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
-        },
-        secureStore: {
-          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
-        },
-      })
-    );
-
-    await waitFor(() => {
-      expect(result.current.steps.initializing_keys.status).toBe('blocked');
-    });
-
-    expect(result.current.terminalState).toBe('blocked_by_key_init_failure');
-    expect(result.current.steps.initializing_keys.errorMessage).toBe('Secure key storage is unavailable on this device.');
-
-    await act(async () => {
-      await result.current.retryStep('initializing_keys');
-    });
-
-    expect(result.current.steps.initializing_keys.status).toBe('granted');
-    expect(result.current.steps.verifying_keys.status).toBe('granted');
-    expect(result.current.terminalState).toBe('ready_to_continue');
-    expect(mockGetOrCreateAppDataEncryptionKey).toHaveBeenCalledTimes(3);
-  });
-
-  it('surfaces verification failure and allows retrying the verification phase', async () => {
-    mockGetOrCreateAppDataEncryptionKey
-      .mockResolvedValueOnce('mock-app-data-key')
-      .mockRejectedValueOnce(new Error('Secure storage unavailable'))
-      .mockResolvedValueOnce('mock-app-data-key')
-      .mockResolvedValueOnce('mock-app-data-key');
-
-    const { result } = renderHook(() =>
-      useOnboardingPermissions({
-        camera: {
-          currentPermission: createCameraResult(true, true),
-          requestPermission: jest.fn(async () => createCameraResult(true, true)),
-        },
-        bluetooth: {
-          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
-        },
-        secureStore: {
-          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
-        },
-      })
-    );
-
-    await waitFor(() => {
-      expect(result.current.steps.verifying_keys.status).toBe('blocked');
-    });
-
-    expect(result.current.steps.initializing_keys.status).toBe('granted');
-    expect(result.current.terminalState).toBe('blocked_by_key_init_failure');
-
-    await act(async () => {
-      await result.current.retryStep('verifying_keys');
-    });
-
-    expect(result.current.steps.verifying_keys.status).toBe('granted');
-    expect(result.current.terminalState).toBe('ready_to_continue');
-  });
-
-  it('surfaces recovery flow when authenticated secure-store key is invalidated', async () => {
-    mockGetOrCreateAppDataEncryptionKey.mockRejectedValueOnce(
-      new Error('KEY_STORAGE_AUTH_INVALIDATED: Protected key material became unreadable and was cleared')
-    );
-
-    const { result } = renderHook(() =>
-      useOnboardingPermissions({
-        camera: {
-          currentPermission: createCameraResult(true, true),
-          requestPermission: jest.fn(async () => createCameraResult(true, true)),
-        },
-        bluetooth: {
-          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
-        },
-        secureStore: {
-          checkReadiness: jest.fn(async () => ({ status: 'granted' })),
-        },
-      })
-    );
-
-    await waitFor(() => {
-      expect(result.current.terminalState).toBe('blocked_by_key_init_failure');
-    });
-
-    const keySetupError =
-      result.current.steps.initializing_keys.errorMessage ?? result.current.steps.verifying_keys.errorMessage;
-    expect(keySetupError).toContain('no longer readable');
   });
 });
