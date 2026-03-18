@@ -25,15 +25,18 @@ export default function LockScreen() {
     setIsRetrying(true);
     setErrorMessage(null);
 
-    const result = await unlockGate();
+    try {
+      const result = await unlockGate();
 
-    if (result.status === 'unlocked') {
-      router.replace('/handshake');
-      return;
+      if (result.status === 'unlocked') {
+        router.replace('/handshake');
+        return;
+      }
+
+      setErrorMessage('Unlock was canceled or failed. Keep app state locked until authentication succeeds.');
+    } finally {
+      setIsRetrying(false);
     }
-
-    setErrorMessage('Unlock was canceled or failed. Keep app state locked until authentication succeeds.');
-    setIsRetrying(false);
   };
 
   return (
