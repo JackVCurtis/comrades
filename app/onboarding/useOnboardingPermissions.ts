@@ -8,17 +8,13 @@ import {
   type OnboardingPermissionStatus,
   type PermissionCheckResult,
 } from '@/app/onboarding/bluetoothPermission';
-import { mapIdentityInitializationFailure } from '@/app/onboarding/identityInitialization';
 import { createSecureStoreReadinessChecker } from '@/app/onboarding/secureStoreReadiness';
-import { getOrCreateAppDataEncryptionKey } from '@/app/protocol/crypto/appDataEncryptionKey';
-import { requestDeviceAuthenticationPrompt } from '@/app/security/secureStorageContract';
 
-export type OnboardingPermissionStepKey = 'camera' | 'bluetooth' | 'secureStore' | 'initializing_keys';
+export type OnboardingPermissionStepKey = 'camera' | 'bluetooth' | 'secureStore';
 export type OnboardingTerminalState =
   | 'in_progress'
   | 'ready_to_continue'
-  | 'blocked_by_permissions'
-  | 'blocked_by_key_init_failure';
+  | 'blocked_by_permissions';
 
 interface OnboardingPermissionStep {
   label: string;
@@ -49,18 +45,14 @@ interface UseOnboardingPermissionsPorts {
   secureStore?: {
     checkReadiness: () => Promise<PermissionCheckResult>;
   };
-  identity?: {
-    initializeKeypair: () => Promise<PermissionCheckResult>;
-  };
 }
 
-const STEP_ORDER: OnboardingPermissionStepKey[] = ['camera', 'bluetooth', 'secureStore', 'initializing_keys'];
+const STEP_ORDER: OnboardingPermissionStepKey[] = ['camera', 'bluetooth', 'secureStore'];
 
 const STEP_LABELS: Record<OnboardingPermissionStepKey, string> = {
   camera: 'Camera',
   bluetooth: 'Bluetooth',
   secureStore: 'Secure key storage',
-  initializing_keys: 'Initializing keys',
 };
 
 const FRIENDLY_FAILURE_COPY: Record<string, string> = {
@@ -83,7 +75,7 @@ function normalizeFailureReason(reason: string): string {
 }
 
 function normalizePermissionErrorMessage(
-  key: Exclude<OnboardingPermissionStepKey, 'initializing_keys'>,
+  key: OnboardingPermissionStepKey,
   result: PermissionCheckResult,
   wasPermanentlyDenied: boolean
 ): string | undefined {
@@ -108,7 +100,6 @@ function createInitialSteps(): StepStateMap {
     camera: { label: STEP_LABELS.camera, status: 'idle' },
     bluetooth: { label: STEP_LABELS.bluetooth, status: 'idle' },
     secureStore: { label: STEP_LABELS.secureStore, status: 'idle' },
-    initializing_keys: { label: STEP_LABELS.initializing_keys, status: 'idle' },
   };
 }
 
@@ -129,24 +120,6 @@ function createBleReadinessChecker(): (() => Promise<PermissionCheckResult>) {
       manager?.destroy();
     }
   };
-}
-
-async function initializeAppDataEncryptionKey(): Promise<PermissionCheckResult> {
-  try {
-    const promptResult = await requestDeviceAuthenticationPrompt();
-    if (promptResult.status === 'canceled') {
-      throw new Error(promptResult.message ?? 'User canceled authentication prompt');
-    }
-
-    if (promptResult.status === 'failed') {
-      throw new Error(promptResult.message ?? 'Authentication required: device is locked');
-    }
-
-    await getOrCreateAppDataEncryptionKey();
-    return { status: 'granted' };
-  } catch (error) {
-    return mapIdentityInitializationFailure(error);
-  }
 }
 
 export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = {}) {
@@ -189,11 +162,6 @@ export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = 
     [ports.secureStore?.checkReadiness]
   );
 
-  const runIdentityInitialization = useMemo(
-    () => ports.identity?.initializeKeypair ?? initializeAppDataEncryptionKey,
-    [ports.identity?.initializeKeypair]
-  );
-
   const runStep = useCallback(async (key: OnboardingPermissionStepKey): Promise<PermissionCheckResult> => {
     setSteps((previous) => ({
       ...previous,
@@ -205,20 +173,15 @@ export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = 
       result = await requestCamera();
     } else if (key === 'bluetooth') {
       result = await checkBluetoothReadiness();
-    } else if (key === 'secureStore') {
-      result = await checkSecureStoreReadiness();
     } else {
-      result = await runIdentityInitialization();
+      result = await checkSecureStoreReadiness();
     }
 
-    const normalizedErrorMessage =
-      key === 'initializing_keys'
-        ? result.errorMessage
-        : normalizePermissionErrorMessage(
-            key,
-            result,
-            key === 'camera' && result.errorMessage === 'camera_permission_blocked' && result.status === 'blocked'
-          );
+    const normalizedErrorMessage = normalizePermissionErrorMessage(
+      key,
+      result,
+      key === 'camera' && result.errorMessage === 'camera_permission_blocked' && result.status === 'blocked'
+    );
 
     setSteps((previous) => ({
       ...previous,
@@ -233,7 +196,7 @@ export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = 
       ...result,
       errorMessage: normalizedErrorMessage,
     };
-  }, [checkBluetoothReadiness, checkSecureStoreReadiness, requestCamera, runIdentityInitialization]);
+  }, [checkBluetoothReadiness, checkSecureStoreReadiness, requestCamera]);
 
   const runChecksFromStep = useCallback(async (startKey: OnboardingPermissionStepKey): Promise<void> => {
     const startIndex = STEP_ORDER.indexOf(startKey);
@@ -264,16 +227,14 @@ export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = 
 
   const terminalState: OnboardingTerminalState = isReady
     ? 'ready_to_continue'
-    : steps.initializing_keys.status === 'denied' || steps.initializing_keys.status === 'blocked'
-      ? 'blocked_by_key_init_failure'
-      : steps.camera.status === 'denied' ||
-          steps.camera.status === 'blocked' ||
-          steps.bluetooth.status === 'denied' ||
-          steps.bluetooth.status === 'blocked' ||
-          steps.secureStore.status === 'denied' ||
-          steps.secureStore.status === 'blocked'
-        ? 'blocked_by_permissions'
-        : 'in_progress';
+    : steps.camera.status === 'denied' ||
+        steps.camera.status === 'blocked' ||
+        steps.bluetooth.status === 'denied' ||
+        steps.bluetooth.status === 'blocked' ||
+        steps.secureStore.status === 'denied' ||
+        steps.secureStore.status === 'blocked'
+      ? 'blocked_by_permissions'
+      : 'in_progress';
 
   return {
     steps,
