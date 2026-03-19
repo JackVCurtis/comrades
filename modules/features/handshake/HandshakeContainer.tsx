@@ -84,32 +84,26 @@ export function HandshakeContainer() {
     let cancelled = false;
 
     const exchangeContactPayloadOverBle = async () => {
-      try {
-        const localRole = mode === 'offer' ? 'offerer' : 'accepter';
-        const localPayload = buildExchangedPayloadForRole(localRole).localSharedPayload;
-        const receivedRawPayload = await exchangeContactInfoOverBle(JSON.stringify(localPayload));
-        const remotePayload = parseContactPayload(receivedRawPayload);
+      const localRole = mode === 'offer' ? 'offerer' : 'accepter';
+      const localPayload = buildExchangedPayloadForRole(localRole).localSharedPayload;
+      const receivedRawPayload = await exchangeContactInfoOverBle(JSON.stringify(localPayload));
+      const remotePayload = parseContactPayload(receivedRawPayload);
 
-        if (cancelled || !remotePayload) {
-          return;
-        }
-
-        const exchangedPayload: ExchangedPayloadResult = {
-          localSharedPayload: localPayload,
-          remoteReceivedPayload: remotePayload,
-        };
-
-        addHandshakeCounterparty({
-          localSharedName: exchangedPayload.localSharedPayload.displayName,
-          providedName: exchangedPayload.remoteReceivedPayload.displayName,
-          contactInfo: exchangedPayload.remoteReceivedPayload.email,
-        });
-        setExchangedPayloadResult(exchangedPayload);
-      } catch {
-        if (!cancelled) {
-          setExchangedPayloadResult(null);
-        }
+      if (cancelled || !remotePayload) {
+        return;
       }
+
+      const exchangedPayload: ExchangedPayloadResult = {
+        localSharedPayload: localPayload,
+        remoteReceivedPayload: remotePayload,
+      };
+
+      addHandshakeCounterparty({
+        localSharedName: exchangedPayload.localSharedPayload.displayName,
+        providedName: exchangedPayload.remoteReceivedPayload.displayName,
+        contactInfo: exchangedPayload.remoteReceivedPayload.email,
+      });
+      setExchangedPayloadResult(exchangedPayload);
     };
 
     void exchangeContactPayloadOverBle();

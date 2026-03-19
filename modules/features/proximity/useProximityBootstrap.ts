@@ -108,8 +108,6 @@ export function useProximityBootstrap(ports: UseProximityBootstrapPorts = {}) {
   const prepareWriterPayload = async (identityBindingHash: string) => {
     dispatch({ type: 'set_status', status: 'bootstrap_preparing' });
     pushDiagnosticEvent({ source: 'qr', action: 'generate_start', detail: 'Preparing signed QR bootstrap payload.' });
-
-    // try {
       const localServiceUuid = await blePort.getLocalServiceUuid();
 
       const signable: SignableQrBootstrapV1 = {
@@ -127,12 +125,6 @@ export function useProximityBootstrap(ports: UseProximityBootstrapPorts = {}) {
       setDiagnostic('Bootstrap payload generated and ready for QR scan.');
       pushDiagnosticEvent({ source: 'qr', action: 'generate_success', detail: 'Payload encoded for QR display.' });
       dispatch({ type: 'set_status', status: 'bootstrap_ready' });
-    // } catch (error: any) {
-    //   console.log(error)
-    //   setBootstrapPayload(null);
-    //   setBootstrapDisplayString('');
-    //   failWithMappedError(error, `Bootstrap payload generation failed: ${error}`, 'qr');
-    // }
   };
 
   const ingestScannedBootstrap = async (scannedPayload: string, expectedSignerPublicKey: string): Promise<boolean> => {
