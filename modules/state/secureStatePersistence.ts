@@ -1,13 +1,12 @@
 import { getOrCreateAppDataEncryptionKey } from '@/modules/protocol/crypto/appDataEncryptionKey';
 import { generateRandomBytes, openSecretbox, sealSecretbox } from '@/modules/protocol/crypto/crypto';
 import {
-  createExpoSecureStoreAdapter,
-  readSecureStoreItemOrClearOnInvalidation,
   type SecureStorageAuthSession,
-  type SecureStoreAdapter,
+  type SecureStoreAdapter
 } from '@/modules/security/secureStorageContract';
 import { decodeBase64, encodeBase64, utf8Decode, utf8Encode } from '@/modules/utils/bytes';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { readAppStateSnapshot, replaceAppStateSnapshot, type AppStateDto } from './appState';
 
 const APP_STATE_PERSISTENCE_PAYLOAD_VERSION = 1;
@@ -73,7 +72,6 @@ function buildPersistedPayload(params: {
 }
 
 export async function persistSecureAppState(options: PersistSecureAppStateOptions = {}): Promise<void> {
-  const adapter = options.adapter ?? createExpoSecureStoreAdapter();
   const readAppState = options.readAppState ?? readAppStateSnapshot;
   const getEncryptionKey = options.getEncryptionKey ?? getOrCreateAppDataEncryptionKey;
   const randomBytes = options.randomBytes ?? generateRandomBytes;
@@ -89,7 +87,7 @@ export async function persistSecureAppState(options: PersistSecureAppStateOption
     now,
   });
 
-  await adapter.setItem(APP_STATE_SECURE_PAYLOAD_STORAGE_KEY, JSON.stringify(payload));
+  await AsyncStorage.setItem(APP_STATE_SECURE_PAYLOAD_STORAGE_KEY, JSON.stringify(payload));
 }
 
 function parsePersistedPayload(payload: string): PersistedSecureAppStatePayload {
@@ -97,9 +95,8 @@ function parsePersistedPayload(payload: string): PersistedSecureAppStatePayload 
 }
 
 export async function hydrateSecureAppState(encryptionKey: string): Promise<void> {
-  const adapter = createExpoSecureStoreAdapter();
 
-  const storedPayload = await readSecureStoreItemOrClearOnInvalidation(adapter, APP_STATE_SECURE_PAYLOAD_STORAGE_KEY);
+  const storedPayload = await AsyncStorage.getItem(APP_STATE_SECURE_PAYLOAD_STORAGE_KEY);
 
   if (!storedPayload) {
     return;

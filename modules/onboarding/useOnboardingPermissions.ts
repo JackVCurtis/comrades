@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PermissionsAndroid, Platform } from 'react-native';
-import bleModule from 'react-native-ble-plx';
 
 import {
-  mapBlePermissionFailure,
-  mapBleStateToPermissionResult,
   type OnboardingPermissionStatus,
-  type PermissionCheckResult,
+  type PermissionCheckResult
 } from '@/modules/onboarding/bluetoothPermission';
 import { createSecureStoreReadinessChecker } from '@/modules/onboarding/secureStoreReadiness';
 
-export type OnboardingPermissionStepKey = 'camera' | 'nearbyDevices' | 'secureStore';
+export type OnboardingPermissionStepKey = 'camera' | 'secureStore';
 export type OnboardingTerminalState =
   | 'in_progress'
   | 'ready_to_continue'
@@ -34,26 +31,20 @@ interface UseOnboardingPermissionsPorts {
     currentPermission: PermissionLike | null;
     requestPermission: () => Promise<PermissionLike>;
   };
-  nearbyDevices?: {
-    currentPermission: PermissionLike
-    requestPermission: () => Promise<PermissionLike>;
-  };
   secureStore?: {
     checkReadiness: () => Promise<PermissionCheckResult>;
   };
 }
 
-const STEP_ORDER: OnboardingPermissionStepKey[] = ['camera', 'nearbyDevices', 'secureStore'];
+const STEP_ORDER: OnboardingPermissionStepKey[] = ['camera', 'secureStore'];
 
 const STEP_LABELS: Record<OnboardingPermissionStepKey, string> = {
   camera: 'Camera',
-  nearbyDevices: 'Nearby devices',
   secureStore: 'Secure key storage',
 };
 
 const FRIENDLY_FAILURE_COPY: Record<string, string> = {
   CAMERA_PERMISSION_BLOCKED: `Camera access is required for secure QR verification. ${platformSettingsGuidance('camera')}`,
-  BLUETOOTH_PERMISSION_BLOCKED: `Nearby devices access is required for authenticated nearby transport. ${platformSettingsGuidance('nearby devices')}`,
   SECURESTORE_PERMISSION_BLOCKED: `Secure storage access is required to protect identity keys. ${platformSettingsGuidance('secure storage')}`,
 };
 
@@ -90,26 +81,7 @@ function normalizePermissionErrorMessage(
 function createInitialSteps(): StepStateMap {
   return {
     camera: { label: STEP_LABELS.camera, status: 'idle' },
-    nearbyDevices: { label: STEP_LABELS.nearbyDevices, status: 'idle' },
     secureStore: { label: STEP_LABELS.secureStore, status: 'idle' },
-  };
-}
-
-function createBleReadinessChecker(): (() => Promise<PermissionCheckResult>) {
-  return async () => {
-    let manager: bleModule.BleManager | null = null;
-
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      manager = new bleModule.BleManager();
-      const state = await manager.state();
-
-      return mapBleStateToPermissionResult(state);
-    } catch (error) {
-      return mapBlePermissionFailure(error);
-    } finally {
-      manager?.destroy();
-    }
   };
 }
 
@@ -123,8 +95,7 @@ export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = 
           PermissionsAndroid.PERMISSIONS.CAMERA,
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_ADVERTISE,
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-          PermissionsAndroid.PERMISSIONS.NEARBY_WIFI_DEVICES,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN
         ]
       )
       const allAllowed = Object.values(allowed).every(v => v === 'granted')
@@ -158,8 +129,6 @@ export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = 
     let result: PermissionCheckResult;
     if (key === 'camera') {
       result = await requestPermissions();
-    } else if (key === 'nearbyDevices') {
-      result = await createBleReadinessChecker()();
     } else {
       result = await checkSecureStoreReadiness();
     }
@@ -216,8 +185,6 @@ export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = 
     ? 'ready_to_continue'
     : steps.camera.status === 'denied' ||
         steps.camera.status === 'blocked' ||
-        steps.nearbyDevices.status === 'denied' ||
-        steps.nearbyDevices.status === 'blocked' ||
         steps.secureStore.status === 'denied' ||
         steps.secureStore.status === 'blocked'
       ? 'blocked_by_permissions'

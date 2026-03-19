@@ -1,6 +1,5 @@
 import {
-  mapSecureStorageAuthErrorToRetryable,
-  type SecureStorageAuthSession
+  mapSecureStorageAuthErrorToRetryable
 } from '@/modules/security/secureStorageContract';
 import { getCachedAppDataEncryptionKey } from '@/modules/security/sessionEncryptionKey';
 import { unloadSensitiveAppState } from '@/modules/state/appState';
@@ -10,7 +9,6 @@ import { hydrateSecureAppState } from '../state/secureStatePersistence';
 export type DeviceAuthenticationResult = {
   status: 'success' | 'failed' | 'canceled';
   encryptionKey?: string;
-  authSession?: SecureStorageAuthSession;
 };
 
 export type UnlockGateResult = {
@@ -20,7 +18,7 @@ export type UnlockGateResult = {
 
 export type UnlockGateOptions = {
   authenticate?: () => Promise<DeviceAuthenticationResult>;
-  hydrateState?: (params: { encryptionKey?: string; authSession?: SecureStorageAuthSession }) => Promise<void>;
+  hydrateState?: (params: { encryptionKey?: string }) => Promise<void>;
   unloadState?: () => void;
 };
 
@@ -50,23 +48,16 @@ export async function performDeviceAuthentication(): Promise<DeviceAuthenticatio
   }
 }
 
-export async function unlockGate(options: UnlockGateOptions = {}): Promise<UnlockGateResult> {
-  if (inFlightUnlock) {
-    return inFlightUnlock;
-  }
-
-  const unloadState = options.unloadState ?? unloadSensitiveAppState;
-
-  inFlightUnlock = (async () => {
-    const authenticationResult = await performDeviceAuthentication()
+export async function unlockGate(): Promise<UnlockGateResult> {
+  const authenticationResult = await performDeviceAuthentication()
 
     if (authenticationResult.status === 'canceled') {
-      unloadState();
+      unloadSensitiveAppState();
       return { status: 'locked', reason: 'auth_canceled' };
     }
 
     if (authenticationResult.status === 'failed') {
-      unloadState();
+      unloadSensitiveAppState();
       return { status: 'locked', reason: 'auth_failed' };
     }
 
@@ -77,18 +68,8 @@ export async function unlockGate(options: UnlockGateOptions = {}): Promise<Unloc
       return { status: 'unlocked' };
     } catch (error) {
       console.warn('Secure state hydration failed during unlock gate', error);
-      unloadState();
+      unloadSensitiveAppState();
       return { status: 'locked', reason: 'hydrate_failed' };
     }
-  })();
-
-  try {
-    return await inFlightUnlock;
-  } finally {
-    inFlightUnlock = null;
-  }
 }
 
-export function isUnlockInProgress(): boolean {
-  return inFlightUnlock !== null;
-}
