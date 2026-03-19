@@ -42,32 +42,6 @@ function toBase64(bytes: Uint8Array): string {
   return encodeBase64(bytes);
 }
 
-function mapAsyncRuntimeError(error: unknown): string {
-  const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
-
-  if (message.includes('permission')) {
-    return 'PERMISSION_DENIED';
-  }
-
-  if (message.includes('camera')) {
-    return 'CAMERA_PERMISSION_DENIED';
-  }
-
-  if (message.includes('device uuid unavailable') || message.includes('local service uuid unavailable')) {
-    return 'DEVICE_UUID_UNAVAILABLE';
-  }
-
-  if (message.includes('ble') && (message.includes('unavailable') || message.includes('disabled'))) {
-    return 'BLE_UNAVAILABLE_OR_DISABLED';
-  }
-
-  if (message.includes('timeout') || message.includes('not_found') || message.includes('no device')) {
-    return 'SCAN_TIMEOUT_OR_DEVICE_NOT_FOUND';
-  }
-
-  return 'PROXIMITY_RUNTIME_FAILURE';
-}
-
 export function useProximityBootstrap(ports: UseProximityBootstrapPorts = {}) {
   const [state, dispatch] = useReducer(proximitySessionReducer, { status: 'idle' as const });
   const [getLocalKeys] = useState(() => createProximityLocalKeysProvider());
@@ -92,17 +66,6 @@ export function useProximityBootstrap(ports: UseProximityBootstrapPorts = {}) {
     }
 
     return localKeys;
-  };
-
-  const failWithMappedError = (error: unknown, prefix: string, source: ProximityDiagnosticEvent['source']) => {
-    const reason = mapAsyncRuntimeError(error);
-    setDiagnostic(`${prefix} (${reason}). Please retry.`);
-    pushDiagnosticEvent({ source, action: prefix, detail: reason });
-    dispatch({ type: 'failed', reason });
-
-    if (__DEV__) {
-      console.warn(`${prefix}:`, error);
-    }
   };
 
   const prepareWriterPayload = async (identityBindingHash: string) => {
@@ -131,7 +94,6 @@ export function useProximityBootstrap(ports: UseProximityBootstrapPorts = {}) {
     dispatch({ type: 'set_status', status: 'bootstrap_scanned' });
     pushDiagnosticEvent({ source: 'qr', action: 'scan_start', detail: 'QR payload scanned; decoding and validating.' });
 
-    try {
       const decoded = decodeQrBootstrapScan(scannedPayload);
       if (!decoded.valid) {
         const reason = `${decoded.reason}:${decoded.field}`;
@@ -157,10 +119,6 @@ export function useProximityBootstrap(ports: UseProximityBootstrapPorts = {}) {
       pushDiagnosticEvent({ source: 'qr', action: 'scan_valid', detail: 'Signed QR payload validated and staged.' });
       dispatch({ type: 'set_status', status: 'bootstrap_validated' });
       return true;
-    } catch (error) {
-      failWithMappedError(error, 'Bootstrap payload scan failed', 'qr');
-      return false;
-    }
   };
 
   const handleCameraPermissionDenied = () => {
@@ -180,8 +138,7 @@ export function useProximityBootstrap(ports: UseProximityBootstrapPorts = {}) {
     dispatch({ type: 'set_status', status: 'ble_scanning' });
     pushDiagnosticEvent({ source: 'ble', action: 'scan_start', detail: 'Scanning for matching BLE service UUID.' });
 
-    try {
-      const discoveredDevice = await blePort.scanForService(pending.bluetoothServiceUuid, 10_000);
+    const discoveredDevice = await blePort.scanForService(pending.bluetoothServiceUuid, 10_000);
       if (!discoveredDevice) {
         setDiagnostic('BLE discovery failed: SCAN_TIMEOUT_OR_DEVICE_NOT_FOUND');
         pushDiagnosticEvent({ source: 'ble', action: 'scan_timeout', detail: 'No matching device discovered before timeout.' });
@@ -230,11 +187,7 @@ export function useProximityBootstrap(ports: UseProximityBootstrapPorts = {}) {
       }
 
       setDiagnostic('Session authenticated and bound to QR bootstrap data.');
-      pushDiagnosticEvent({ source: 'session', action: 'authenticated', detail: `Device ${connectedDevice.id} authenticated.` });
-      dispatch({ type: 'set_status', status: 'session_authenticated' });
-    } catch (error) {
-      failWithMappedError(error, 'BLE connect/auth flow failed', 'ble');
-    }
+      pushDiagnosticEvent({ source: 'session', action: 'authenticated', detail: `Device ${connectedDevice.id} authenticated.` });      dispatch({ type: 'set_status', status: 'session_authenticated' });
   };
 
   const exchangeContactInfoOverBle = async (contactInfo: string): Promise<string> => {

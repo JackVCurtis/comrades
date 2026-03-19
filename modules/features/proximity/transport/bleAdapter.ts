@@ -1,4 +1,5 @@
 import { decodeBase64, encodeBase64 } from '@/modules/protocol/transport';
+import { Alert } from 'react-native';
 import bleModule from 'react-native-ble-plx';
 import type { ProximityBleDevice, ProximityBlePort } from './types';
 interface SubscriptionLike {
@@ -144,18 +145,19 @@ export function createBleAdapter(manager = createBleManager()): ProximityBlePort
       return;
     }
 
-    await new Promise<void>((resolve, reject) => {
-      stateSubscription?.remove();
-      stateSubscription = manager.onStateChange((nextState) => {
-        if (nextState === 'PoweredOn') {
-          resolve();
-        }
-      }, true);
-
-      setTimeout(() => {
-        reject(new Error('BLE_UNAVAILABLE'));
-      }, 3_000);
-    });
+    if (state === 'PoweredOff') {
+      Alert.alert('"App" would like to use Bluetooth.', 'This app uses Bluetooth to connect to and share information with your .....', [
+        {
+          text: "Don't allow",
+          onPress: () => { throw new Error('BLE_OFF_ACCESS_DENIED')},
+          style: 'cancel',
+        },
+        { text: "Turn ON", onPress: () => { 
+          manager.enable()
+          return
+          } },
+      ]);
+    }
   };
 
   return {
