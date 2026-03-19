@@ -1,13 +1,12 @@
 import {
-  authenticateForSecureStorage,
   mapSecureStorageAuthErrorToRetryable,
-  type SecureStorageAuthSession,
+  type SecureStorageAuthSession
 } from '@/modules/security/secureStorageContract';
 import { getCachedAppDataEncryptionKey } from '@/modules/security/sessionEncryptionKey';
 import { unloadSensitiveAppState } from '@/modules/state/appState';
-import { hydrateSecureAppState, } from '@/modules/state/secureStatePersistence';
   
 import { getOrCreateAppDataEncryptionKey } from '@/modules/protocol/crypto/appDataEncryptionKey';
+import { hydrateSecureAppState } from '../state/secureStatePersistence';
 export type DeviceAuthenticationResult = {
   status: 'success' | 'failed' | 'canceled';
   encryptionKey?: string;
@@ -38,18 +37,8 @@ export async function performDeviceAuthentication(): Promise<DeviceAuthenticatio
     if (cachedEncryptionKey) {
       return { status: 'success', encryptionKey: cachedEncryptionKey };
     }
-
-    const authResult = await authenticateForSecureStorage();
-    if (authResult.status === 'canceled') {
-      return { status: 'canceled' };
-    }
-
-    if (authResult.status === 'failed' || !authResult.session) {
-      return { status: 'failed' };
-    }
-
-    const encryptionKey = await getOrCreateAppDataEncryptionKey({ authSession: authResult.session });
-    return { status: 'success', encryptionKey, authSession: authResult.session };
+    const encryptionKey = await getOrCreateAppDataEncryptionKey();
+    return { status: 'success', encryptionKey };
   } catch (error) {
     const retryableError = mapSecureStorageAuthErrorToRetryable(error);
 
@@ -66,15 +55,10 @@ export async function unlockGate(options: UnlockGateOptions = {}): Promise<Unloc
     return inFlightUnlock;
   }
 
-  const authenticate = options.authenticate ?? performDeviceAuthentication;
-  const hydrateState =
-    options.hydrateState ??
-    (async ({ encryptionKey, authSession }: { encryptionKey?: string; authSession?: SecureStorageAuthSession }) =>
-      hydrateSecureAppState({ encryptionKey, authSession }));
   const unloadState = options.unloadState ?? unloadSensitiveAppState;
 
   inFlightUnlock = (async () => {
-    const authenticationResult = await authenticate();
+    const authenticationResult = await performDeviceAuthentication()
 
     if (authenticationResult.status === 'canceled') {
       unloadState();
@@ -87,10 +71,9 @@ export async function unlockGate(options: UnlockGateOptions = {}): Promise<Unloc
     }
 
     try {
-      await hydrateState({
-        encryptionKey: authenticationResult.encryptionKey,
-        authSession: authenticationResult.authSession,
-      });
+      await hydrateSecureAppState(
+        authenticationResult.encryptionKey!
+      );
       return { status: 'unlocked' };
     } catch (error) {
       console.warn('Secure state hydration failed during unlock gate', error);

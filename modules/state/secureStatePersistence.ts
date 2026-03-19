@@ -96,10 +96,8 @@ function parsePersistedPayload(payload: string): PersistedSecureAppStatePayload 
   return JSON.parse(payload) as PersistedSecureAppStatePayload;
 }
 
-export async function hydrateSecureAppState(options: HydrateSecureAppStateOptions = {}): Promise<void> {
-  const adapter = options.adapter ?? createExpoSecureStoreAdapter();
-  const getEncryptionKey = options.getEncryptionKey ?? getOrCreateAppDataEncryptionKey;
-  const hydrateState = options.hydrateState ?? replaceAppStateSnapshot;
+export async function hydrateSecureAppState(encryptionKey: string): Promise<void> {
+  const adapter = createExpoSecureStoreAdapter();
 
   const storedPayload = await readSecureStoreItemOrClearOnInvalidation(adapter, APP_STATE_SECURE_PAYLOAD_STORAGE_KEY);
 
@@ -108,9 +106,7 @@ export async function hydrateSecureAppState(options: HydrateSecureAppStateOption
   }
 
   const payload = parsePersistedPayload(storedPayload);
-  const keyBytes = assertSecretboxKeyBytes(
-    options.encryptionKey ?? (await getEncryptionKey({ authSession: options.authSession }))
-  );
+  const keyBytes = assertSecretboxKeyBytes(encryptionKey)
   const nonceBytes = decodeBase64(payload.nonce);
   const ciphertextBytes = decodeBase64(payload.ciphertext);
 
@@ -124,5 +120,5 @@ export async function hydrateSecureAppState(options: HydrateSecureAppStateOption
     throw new Error('APP_STATE_DECRYPT_FAILED: unable to decrypt persisted app state payload.');
   }
 
-  hydrateState(JSON.parse(utf8Decode(plaintext)) as AppStateDto);
+   replaceAppStateSnapshot(JSON.parse(utf8Decode(plaintext)) as AppStateDto);
 }

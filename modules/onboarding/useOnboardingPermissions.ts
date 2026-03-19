@@ -1,16 +1,16 @@
-import { useCameraPermissions } from 'expo-camera';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
+import bleModule from 'react-native-ble-plx';
 
 import {
-    mapBlePermissionFailure,
-    mapBleStateToPermissionResult,
-    type OnboardingPermissionStatus,
-    type PermissionCheckResult,
+  mapBlePermissionFailure,
+  mapBleStateToPermissionResult,
+  type OnboardingPermissionStatus,
+  type PermissionCheckResult,
 } from '@/modules/onboarding/bluetoothPermission';
 import { createSecureStoreReadinessChecker } from '@/modules/onboarding/secureStoreReadiness';
 
-export type OnboardingPermissionStepKey = 'camera' | 'bluetooth' | 'secureStore';
+export type OnboardingPermissionStepKey = 'camera' | 'nearbyDevices' | 'secureStore';
 export type OnboardingTerminalState =
   | 'in_progress'
   | 'ready_to_continue'
@@ -24,34 +24,30 @@ interface OnboardingPermissionStep {
 
 type StepStateMap = Record<OnboardingPermissionStepKey, OnboardingPermissionStep>;
 
-interface BleManagerLike {
-  state(): Promise<string>;
-  destroy(): void;
-}
-
-interface CameraPermissionLike {
+interface PermissionLike {
   granted: boolean;
   canAskAgain: boolean;
 }
 
 interface UseOnboardingPermissionsPorts {
   camera?: {
-    currentPermission: CameraPermissionLike | null;
-    requestPermission: () => Promise<CameraPermissionLike>;
+    currentPermission: PermissionLike | null;
+    requestPermission: () => Promise<PermissionLike>;
   };
-  bluetooth?: {
-    checkReadiness: () => Promise<PermissionCheckResult>;
+  nearbyDevices?: {
+    currentPermission: PermissionLike
+    requestPermission: () => Promise<PermissionLike>;
   };
   secureStore?: {
     checkReadiness: () => Promise<PermissionCheckResult>;
   };
 }
 
-const STEP_ORDER: OnboardingPermissionStepKey[] = ['camera', 'bluetooth', 'secureStore'];
+const STEP_ORDER: OnboardingPermissionStepKey[] = ['camera', 'nearbyDevices', 'secureStore'];
 
 const STEP_LABELS: Record<OnboardingPermissionStepKey, string> = {
   camera: 'Camera',
-  bluetooth: 'Nearby devices',
+  nearbyDevices: 'Nearby devices',
   secureStore: 'Secure key storage',
 };
 
@@ -94,19 +90,18 @@ function normalizePermissionErrorMessage(
 function createInitialSteps(): StepStateMap {
   return {
     camera: { label: STEP_LABELS.camera, status: 'idle' },
-    bluetooth: { label: STEP_LABELS.bluetooth, status: 'idle' },
+    nearbyDevices: { label: STEP_LABELS.nearbyDevices, status: 'idle' },
     secureStore: { label: STEP_LABELS.secureStore, status: 'idle' },
   };
 }
 
 function createBleReadinessChecker(): (() => Promise<PermissionCheckResult>) {
   return async () => {
-    let manager: BleManagerLike | null = null;
+    let manager: bleModule.BleManager | null = null;
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const bleModule = require('react-native-ble-plx');
-      manager = new bleModule.BleManager() as BleManagerLike;
+      manager = new bleModule.BleManager();
       const state = await manager.state();
 
       return mapBleStateToPermissionResult(state);
@@ -119,39 +114,35 @@ function createBleReadinessChecker(): (() => Promise<PermissionCheckResult>) {
 }
 
 export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = {}) {
-  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [steps, setSteps] = useState<StepStateMap>(createInitialSteps);
 
-  const requestCamera = useCallback(async (): Promise<PermissionCheckResult> => {
-    const currentPermission = ports.camera?.currentPermission ?? cameraPermission;
-
-    if (currentPermission?.granted) {
-      return { status: 'granted' };
-    }
-
-    const response = await (ports.camera?.requestPermission ?? requestCameraPermission)();
-
-    if (response.granted) {
-      return { status: 'granted' };
-    }
-
-    if (response.canAskAgain === false) {
+  const requestPermissions: () => Promise<PermissionCheckResult> = async () => {
+    if (Platform.OS === 'android') {
+      const allowed = await PermissionsAndroid.requestMultiple(
+        [
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_ADVERTISE,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+          PermissionsAndroid.PERMISSIONS.NEARBY_WIFI_DEVICES,
+        ]
+      )
+      const allAllowed = Object.values(allowed).every(v => v === 'granted')
       return {
-        status: 'blocked',
-        errorMessage: 'camera_permission_blocked',
-      };
+        status: allAllowed ? 'granted' : 'denied'
+      }
+    } else if (Platform.OS === 'ios') {
+      return Promise.resolve(
+        {
+          status: 'denied'
+        }
+      )
     }
-
     return {
-      status: 'denied',
-      errorMessage: 'Camera permission denied by the OS.',
-    };
-  }, [cameraPermission, ports.camera, requestCameraPermission]);
+      status: 'denied'
+    }
+  }
 
-  const checkBluetoothReadiness = useMemo(
-    () => ports.bluetooth?.checkReadiness ?? createBleReadinessChecker(),
-    [ports.bluetooth?.checkReadiness]
-  );
 
   const checkSecureStoreReadiness = useMemo(
     () => ports.secureStore?.checkReadiness ?? createSecureStoreReadinessChecker(),
@@ -166,9 +157,9 @@ export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = 
 
     let result: PermissionCheckResult;
     if (key === 'camera') {
-      result = await requestCamera();
-    } else if (key === 'bluetooth') {
-      result = await checkBluetoothReadiness();
+      result = await requestPermissions();
+    } else if (key === 'nearbyDevices') {
+      result = await createBleReadinessChecker()();
     } else {
       result = await checkSecureStoreReadiness();
     }
@@ -192,7 +183,7 @@ export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = 
       ...result,
       errorMessage: normalizedErrorMessage,
     };
-  }, [checkBluetoothReadiness, checkSecureStoreReadiness, requestCamera]);
+  }, [checkSecureStoreReadiness, requestPermissions]);
 
   const runChecksFromStep = useCallback(async (startKey: OnboardingPermissionStepKey): Promise<void> => {
     const startIndex = STEP_ORDER.indexOf(startKey);
@@ -225,8 +216,8 @@ export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = 
     ? 'ready_to_continue'
     : steps.camera.status === 'denied' ||
         steps.camera.status === 'blocked' ||
-        steps.bluetooth.status === 'denied' ||
-        steps.bluetooth.status === 'blocked' ||
+        steps.nearbyDevices.status === 'denied' ||
+        steps.nearbyDevices.status === 'blocked' ||
         steps.secureStore.status === 'denied' ||
         steps.secureStore.status === 'blocked'
       ? 'blocked_by_permissions'

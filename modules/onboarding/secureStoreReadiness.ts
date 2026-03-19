@@ -1,12 +1,8 @@
 import type { PermissionCheckResult } from '@/modules/onboarding/bluetoothPermission';
 import {
-  assertActiveSecureStorageAuthSession,
-  authenticateForSecureStorage,
-  createExpoSecureStoreAdapter,
-  mapSecureStorageAuthErrorToRetryable,
-  type SecureStorageAuthSession,
+  type SecureStorageAuthSession
 } from '@/modules/security/secureStorageContract';
-import { classifySecureStorageError } from '@/modules/security/secureStorageErrors';
+import { getOrCreateAppDataEncryptionKey } from '../protocol/crypto/appDataEncryptionKey';
 
 const SECURE_STORE_PROBE_KEY = 'comrades.onboarding.secure-store.probe';
 
@@ -43,65 +39,11 @@ export function createSecureStoreReadinessChecker(options: {
   authSession?: SecureStorageAuthSession;
 } = {}): () => Promise<PermissionCheckResult> {
   return async () => {
-    const secureStore = createExpoSecureStoreAdapter();
-    const probeValue = `${Date.now()}`;
-
     try {
-      const authResult = await authenticateForSecureStorage();
-
-      if (authResult.status === 'canceled') {
-        return {
-          status: 'denied',
-          errorMessage: 'Device authentication was canceled. Approve secure storage access and retry.',
-        };
-      }
-
-      if (authResult.status === 'failed') {
-        return mapAuthenticationPromptFailure(authResult.message ?? 'Device authentication failed');
-      }
-
-      const authSession = options.authSession ?? authResult.session;
-      assertActiveSecureStorageAuthSession(authSession);
-
-      await secureStore.setItem(SECURE_STORE_PROBE_KEY, probeValue);
-      const recoveredValue = await secureStore.getItem(SECURE_STORE_PROBE_KEY);
-
-      if (recoveredValue !== probeValue) {
-        return {
-          status: 'blocked',
-          errorMessage: 'Protected secure storage failed the runtime probe. Please retry.',
-        };
-      }
-
-      return { status: 'granted' };
-    } catch (error) {
-      const classification = classifySecureStorageError(error);
-      const retryableAuthError = mapSecureStorageAuthErrorToRetryable(error);
-
-      if (classification.isAuthenticationRelated || retryableAuthError.message.includes('RETRYABLE')) {
-        return {
-          status: 'denied',
-          errorMessage: 'Unlock your device and approve secure storage access, then retry.',
-        };
-      }
-
-      if (classification.isInvalidated) {
-        return {
-          status: 'blocked',
-          errorMessage: 'Protected secure storage keys are invalidated. Reconfigure device auth and retry.',
-        };
-      }
-
-      return {
-        status: 'blocked',
-        errorMessage: 'Secure key storage is unavailable on this device.',
-      };
-    } finally {
-      try {
-        await secureStore.deleteItem(SECURE_STORE_PROBE_KEY);
-      } catch {
-        // Best-effort cleanup; probe failures are reported above.
-      }
+      await getOrCreateAppDataEncryptionKey()
+      return { status: 'granted' } 
+    } catch(e) {
+      return { status: 'blocked' }
     }
   };
 }

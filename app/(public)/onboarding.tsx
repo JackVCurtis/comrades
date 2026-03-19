@@ -55,11 +55,11 @@ function timelineLabel(status: TimelineStatus): string {
 }
 
 function buildTimeline(steps: Record<OnboardingPermissionStepKey, { status: keyof typeof STATUS_LABELS }>): TimelineEntry[] {
-  const permissionStatus = [steps.camera.status, steps.bluetooth.status].every((status) => status === 'granted')
+  const permissionStatus = [steps.camera.status, steps.nearbyDevices.status].every((status) => status === 'granted')
     ? 'completed'
-    : [steps.camera.status, steps.bluetooth.status].some((status) => status === 'denied' || status === 'blocked')
+    : [steps.camera.status, steps.nearbyDevices.status].some((status) => status === 'denied' || status === 'blocked')
       ? 'failed'
-      : [steps.camera.status, steps.bluetooth.status].some((status) => status === 'requesting')
+      : [steps.camera.status, steps.nearbyDevices.status].some((status) => status === 'requesting')
         ? 'active'
         : 'pending';
 
