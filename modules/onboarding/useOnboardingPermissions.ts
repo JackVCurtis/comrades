@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { PermissionsAndroid, Platform } from 'react-native';
 
 import {
@@ -115,11 +115,6 @@ export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = 
   }
 
 
-  const checkSecureStoreReadiness = useMemo(
-    () => ports.secureStore?.checkReadiness ?? createSecureStoreReadinessChecker(),
-    [ports.secureStore?.checkReadiness]
-  );
-
   const runStep = useCallback(async (key: OnboardingPermissionStepKey): Promise<PermissionCheckResult> => {
     setSteps((previous) => ({
       ...previous,
@@ -130,7 +125,8 @@ export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = 
     if (key === 'camera') {
       result = await requestPermissions();
     } else {
-      result = await checkSecureStoreReadiness();
+      const checker = await createSecureStoreReadinessChecker();
+      result = await checker()
     }
 
     const normalizedErrorMessage = normalizePermissionErrorMessage(
@@ -152,7 +148,7 @@ export function useOnboardingPermissions(ports: UseOnboardingPermissionsPorts = 
       ...result,
       errorMessage: normalizedErrorMessage,
     };
-  }, [checkSecureStoreReadiness, requestPermissions]);
+  }, [createSecureStoreReadinessChecker, requestPermissions]);
 
   const runChecksFromStep = useCallback(async (startKey: OnboardingPermissionStepKey): Promise<void> => {
     const startIndex = STEP_ORDER.indexOf(startKey);

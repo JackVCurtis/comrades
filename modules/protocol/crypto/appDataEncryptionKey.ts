@@ -1,32 +1,20 @@
 import { generateSecureSessionKey } from '@/modules/crypto';
 import {
-  assertActiveSecureStorageAuthSession,
   createExpoSecureStoreAdapter,
-  getActiveSecureStorageAuthSession,
   mapSecureStorageAuthErrorToRetryable,
-  readSecureStoreItemOrClearOnInvalidation,
-  type SecureStorageAuthSession,
-  type SecureStoreAdapter,
+  readSecureStoreItemOrClearOnInvalidation
 } from '@/modules/security/secureStorageContract';
 import { cacheAppDataEncryptionKey, getCachedAppDataEncryptionKey } from '@/modules/security/sessionEncryptionKey';
 
 export const APP_DATA_ENCRYPTION_KEY_STORAGE_KEY = 'comrades.app-data.encryption-key.v1';
 
-export async function getOrCreateAppDataEncryptionKey(options: {
-  adapter?: SecureStoreAdapter;
-  authSession?: SecureStorageAuthSession;
-} = {}): Promise<string> {
+export async function getOrCreateAppDataEncryptionKey(): Promise<string> {
   const cached = getCachedAppDataEncryptionKey();
   if (cached) {
     return cached;
   }
 
-  const adapter = options.adapter ?? createExpoSecureStoreAdapter();
-  const authSession = options.authSession ?? getActiveSecureStorageAuthSession();
-
-  if (authSession) {
-    assertActiveSecureStorageAuthSession(authSession);
-  }
+  const adapter = createExpoSecureStoreAdapter();
 
   let existing: string | null;
 
