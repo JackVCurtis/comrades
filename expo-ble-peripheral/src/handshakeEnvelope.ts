@@ -8,20 +8,17 @@ export type HandshakeEnvelope = {
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 export const MAX_HANDSHAKE_BYTES = 512;
-
+function b64DecodeUnicode(str: string) {
+    // Going backwards: from bytestream, to percent-encoding, to original string.
+    return decodeURIComponent(atob(str).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+}
 export function parseHandshakeEnvelope(base64Payload: string): HandshakeEnvelope {
-  const bytes = Uint8Array.from(atob(base64Payload))
-  if (!bytes.length) {
-    throw new Error('ERR_MALFORMED_HANDSHAKE: message is empty');
-  }
-  if (bytes.byteLength > MAX_HANDSHAKE_BYTES) {
-    throw new Error(`ERR_HANDSHAKE_TOO_LARGE: message exceeds ${MAX_HANDSHAKE_BYTES} bytes`);
-  }
-
   let decoded: unknown;
   try {
-    decoded = JSON.parse(bytes.toString());
-  } catch {
+    decoded = JSON.parse(b64DecodeUnicode(base64Payload));
+  } catch(e) {
     throw new Error('ERR_MALFORMED_HANDSHAKE: message must be valid JSON');
   }
 
